@@ -4,14 +4,12 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 
-# ضبط الصفحة
 st.set_page_config(
     page_title="المركز الوطني للذكاء الوبائي ورصد المنافذ",
     page_icon="🛡️",
     layout="wide"
 )
 
-# قاعدة بيانات الإحداثيات ومؤشرات SPAR (WHO) لمحطات الوصول إلى مطار المدينة المنورة
 geo_epi_db = {
     "cairo": {"country": "Egypt", "lat": 30.1219, "lon": 31.4056, "spar": 68},
     "dhaka": {"country": "Bangladesh", "lat": 23.8433, "lon": 90.3978, "spar": 52},
@@ -31,7 +29,6 @@ geo_epi_db = {
     "kuala lumpur": {"country": "Malaysia", "lat": 2.7456, "lon": 101.7099, "spar": 78}
 }
 
-# خصائص العوامل الممرضة المعيارية
 pathogen_metadata = {
     "Mpox Clade I (جدري القردة)": {"weight": 1.4, "r0": 1.4},
     "Dengue (حمى الضنك)": {"weight": 0.9, "r0": 1.8},
@@ -39,7 +36,6 @@ pathogen_metadata = {
     "Cholera (الكوليرا)": {"weight": 1.1, "r0": 2.0}
 }
 
-# مصفوفة وبائية واقعية ومفصولة لكل مرض ودولة
 real_epi_matrix = {
     "Mpox Clade I (جدري القردة)": {
         "Nigeria": 55.0,
@@ -93,7 +89,6 @@ real_epi_matrix = {
 
 MED_LAT, MED_LON = 24.5534, 39.7051
 
-# الشريط الجانبي
 st.sidebar.title("🎛️ وحدة الرصد والمغذيات الوبائية")
 st.sidebar.markdown("**حالة التغذية الوبائية:** `مصفوفة وبائية مفصولة (Epi-Matrix)`")
 
@@ -106,7 +101,6 @@ st.sidebar.subheader("🦠 المحددات الوبائية")
 selected_pathogen = st.sidebar.selectbox("التهديد الوبائي المستهدف:", list(pathogen_metadata.keys()))
 surge_multiplier = st.sidebar.slider("مضاعف التفشي الاستثنائي (Outbreak Surge):", 0.5, 3.0, 1.0, 0.1)
 
-# تجهيز البيانات
 if uploaded_file is not None:
     try:
         if uploaded_file.name.endswith(".csv"):
@@ -148,7 +142,11 @@ def enrich_flight_record(row):
     return pd.Series([lat, lon, spar, matched_country, specific_incidence])
 
 enriched = df_flights.apply(enrich_flight_record, axis=1)
-df_flights["lat"], df_flights["lon"], df_flights["spar"], df_flights["country_matched"], df_flights["disease_incidence"] = enriched[0], enriched[1], enriched[2], enriched[3], enriched[4]
+df_flights["lat"] = enriched[0]
+df_flights["lon"] = enriched[1]
+df_flights["spar"] = enriched[2]
+df_flights["country_matched"] = enriched[3]
+df_flights["disease_incidence"] = enriched[4]
 
 p_data = pathogen_metadata[selected_pathogen]
 df_flights["adjusted_incidence"] = df_flights["disease_incidence"] * surge_multiplier
@@ -172,7 +170,6 @@ df_flights["protocol"] = [p[0] for p in proto_res]
 df_flights["color"] = [p[1] for p in proto_res]
 df_flights["level"] = [p[2] for p in proto_res]
 
-# واجهة لوحة القيادة
 st.title("🛡️ المنظومة الوطنية للرصد والتنبؤ الوبائي بمنافذ الدخول")
 st.caption(f"المنفذ المستهدف: **مطار الأمير محمد بن عبدالعزيز الدولي بالمدينة المنورة** | التهديد النشط: **{selected_pathogen}**")
 
@@ -219,6 +216,50 @@ fig.add_trace(go.Scattergeo(
     name="مطار المدينة المنورة"
 ))
 
-fig.update_layout(
+map_layout = dict(
     template="plotly_dark",
     margin=dict(l=0, r=0, t=10, b=0),
+    height=540,
+    geo=dict(
+        scope="world",
+        projection_type="natural earth",
+        showland=True,
+        landcolor="#1a1d24",
+        countrycolor="#2e3440",
+        coastlinecolor="#2e3440",
+        showocean=True,
+        oceancolor="#0e1117",
+        center=dict(lat=24.5, lon=45.0),
+        projection_scale=2.4
+    )
+)
+fig.update_layout(map_layout)
+
+st.plotly_chart(fig, use_container_width=True)
+
+st.markdown("---")
+c_tbl, c_bar = st.columns([6, 4])
+
+with c_tbl:
+    st.subheader("📋 سجل فرز الرحلات وتوزيع الإجراءات الميدانية")
+    disp_cols = ["flight", "origin", "country_matched", "pax", "disease_incidence", "risk_score", "level", "protocol"]
+    if "date" in df_flights.columns:
+        disp_cols.insert(1, "date")
+    view_df = df_flights[disp_cols].sort_values(by="risk_score", ascending=False).reset_index(drop=True)
+    view_df.columns = ["رقم الرحلة"] + (["التاريخ"] if "date" in df_flights.columns else []) + ["محطة الإقلاع", "الدولة", "الركاب", "معدل تفشي المرض بالمنشأ", "مؤشر الخطر", "المستوى", "البروتوكول الميداني بالمطار"]
+    st.dataframe(view_df, use_container_width=True)
+
+with c_bar:
+    st.subheader("📊 مقارنة خطورة المحطات الوافدة")
+    fig_b = px.bar(
+        df_flights.sort_values(by="risk_score"),
+        x="risk_score",
+        y="origin",
+        orientation="h",
+        color="risk_score",
+        color_continuous_scale=["#26a69a", "#ffa726", "#ff4b4b"],
+        template="plotly_dark"
+    )
+    bar_layout = dict(margin=dict(l=0, r=0, t=10, b=0), height=320)
+    fig_b.update_layout(bar_layout)
+    st.plotly_chart(fig_b, use_container_width=True)
