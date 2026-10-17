@@ -4,7 +4,7 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 
-# إعدادات واجهة النظام
+# ضبط الصفحة
 st.set_page_config(
     page_title="المركز الوطني للذكاء الوبائي ورصد المنافذ",
     page_icon="🛡️",
@@ -39,11 +39,11 @@ pathogen_metadata = {
     "Cholera (الكوليرا)": {"weight": 1.1, "r0": 2.0}
 }
 
-# مصفوفة وبائية واقعية ومفصولة لكل مرض ودولة (معدل الحالات لكل 100 ألف نسمة)
+# مصفوفة وبائية واقعية ومفصولة لكل مرض ودولة
 real_epi_matrix = {
     "Mpox Clade I (جدري القردة)": {
-        "Nigeria": 55.0,     # بؤرة توطن وتفشٍ نشطة
-        "India": 0.1,        # حالات نادرة جداً
+        "Nigeria": 55.0,
+        "India": 0.1,
         "Pakistan": 0.1,
         "Egypt": 0.0,
         "Bangladesh": 0.0,
@@ -54,8 +54,8 @@ real_epi_matrix = {
         "Malaysia": 0.1
     },
     "Dengue (حمى الضنك)": {
-        "Bangladesh": 140.0, # تفشٍ موسمي حاد
-        "India": 110.0,      # استيطان ومعدلات عالية في دلهي
+        "Bangladesh": 140.0,
+        "India": 110.0,
         "Pakistan": 75.0,
         "Indonesia": 85.0,
         "Nigeria": 15.0,
@@ -66,7 +66,7 @@ real_epi_matrix = {
         "Malaysia": 60.0
     },
     "Cholera (الكوليرا)": {
-        "Nigeria": 75.0,     # بؤر موسمية حادة
+        "Nigeria": 75.0,
         "Pakistan": 40.0,
         "India": 30.0,
         "Bangladesh": 45.0,
@@ -93,22 +93,20 @@ real_epi_matrix = {
 
 MED_LAT, MED_LON = 24.5534, 39.7051
 
-# --- لوحة التحكم الجانبية ---
+# الشريط الجانبي
 st.sidebar.title("🎛️ وحدة الرصد والمغذيات الوبائية")
 st.sidebar.markdown("**حالة التغذية الوبائية:** `مصفوفة وبائية مفصولة (Epi-Matrix)`")
 
-# 1. قسم رفع ملف الإكسل
 st.sidebar.markdown("---")
 st.sidebar.subheader("📂 بيانات الرحلات الجوية")
 uploaded_file = st.sidebar.file_uploader("ارفع جدول رحلات الشهر (Excel أو CSV):", type=["xlsx", "xls", "csv"])
 
-# 2. تحديد المرض والتحكم بالحسابات
 st.sidebar.markdown("---")
 st.sidebar.subheader("🦠 المحددات الوبائية")
 selected_pathogen = st.sidebar.selectbox("التهديد الوبائي المستهدف:", list(pathogen_metadata.keys()))
 surge_multiplier = st.sidebar.slider("مضاعف التفشي الاستثنائي (Outbreak Surge):", 0.5, 3.0, 1.0, 0.1)
 
-# تجهيز جدول الرحلات
+# تجهيز البيانات
 if uploaded_file is not None:
     try:
         if uploaded_file.name.endswith(".csv"):
@@ -134,7 +132,6 @@ else:
     ]
     df_flights = pd.DataFrame(mock_data)
 
-# ربط بيانات الرحلات بالإحداثيات ومعدل الإصابة الدقيق للمرض المختار
 def enrich_flight_record(row):
     origin_clean = str(row.get("origin", "")).lower().strip()
     matched_country = str(row.get("country", "")).strip()
@@ -146,27 +143,22 @@ def enrich_flight_record(row):
             matched_country = info["country"]
             break
 
-    # جلب معدل الإصابة الخاص بالمرض المختار في هذه الدولة تحديداً
     pathogen_rates = real_epi_matrix.get(selected_pathogen, {})
     specific_incidence = pathogen_rates.get(matched_country, 5.0)
-
     return pd.Series([lat, lon, spar, matched_country, specific_incidence])
 
 enriched = df_flights.apply(enrich_flight_record, axis=1)
 df_flights["lat"], df_flights["lon"], df_flights["spar"], df_flights["country_matched"], df_flights["disease_incidence"] = enriched[0], enriched[1], enriched[2], enriched[3], enriched[4]
 
-# --- محرك تقييم المخاطر وتصنيف الفرز العملياتي ---
 p_data = pathogen_metadata[selected_pathogen]
 df_flights["adjusted_incidence"] = df_flights["disease_incidence"] * surge_multiplier
 df_flights["surveillance_gap"] = (100 - df_flights["spar"]) / 40.0
 
-# معادلة مؤشر وفود العدوى
 df_flights["risk_score"] = np.clip(
     ((df_flights["adjusted_incidence"] / 100000.0) * df_flights["pax"] * p_data["weight"] * df_flights["surveillance_gap"] * 1500) * (p_data["r0"] / 1.5),
     5.0, 99.2
 ).round(1)
 
-# بروتوكول تسلسل الإجراءات
 def assign_action_protocol(score):
     if score >= 65:
         return "المستوى الأحمر: فرز إكلينيكي مباشر، عزل وقائي، وحصر مخالطين", "#ff4b4b", "حرج"
@@ -180,7 +172,7 @@ df_flights["protocol"] = [p[0] for p in proto_res]
 df_flights["color"] = [p[1] for p in proto_res]
 df_flights["level"] = [p[2] for p in proto_res]
 
-# --- واجهة لوحة القيادة ---
+# واجهة لوحة القيادة
 st.title("🛡️ المنظومة الوطنية للرصد والتنبؤ الوبائي بمنافذ الدخول")
 st.caption(f"المنفذ المستهدف: **مطار الأمير محمد بن عبدالعزيز الدولي بالمدينة المنورة** | التهديد النشط: **{selected_pathogen}**")
 
@@ -192,8 +184,6 @@ top_risk = df_flights.loc[df_flights["risk_score"].idxmax()]
 k4.metric("أعلى رحلة خطورة وفود", f"{top_risk['flight']} ({top_risk['origin']})", f"Risk: {top_risk['risk_score']}")
 
 st.markdown("---")
-
-# الخريطة التفاعلية
 st.subheader("🌐 شبكة التدفق الجوي والمسارات الوبائية المباشرة")
 
 fig = go.Figure()
@@ -232,16 +222,3 @@ fig.add_trace(go.Scattergeo(
 fig.update_layout(
     template="plotly_dark",
     margin=dict(l=0, r=0, t=10, b=0),
-    height=540,
-    geo=dict(
-        scope="world",
-        projection_type="natural earth",
-        showland=True,
-        landcolor="#1a1d24",
-        countrycolor="#2e3440",
-        coastlinecolor="#2e3440",
-        showocean=True,
-        oceancolor="#0e1117",
-        center=dict(lat=24.5, lon=45.0),
-        projection_scale=2.4
-    )
