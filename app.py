@@ -4,70 +4,40 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 
-# ضبط إعدادات الصفحة
+# إعدادات واجهة النظام
 st.set_page_config(
-    page_title="المنظومة الوطنية للاستخبارات الوبائية بمنافذ الدخول",
-    page_icon="🌐",
+    page_title="منظومة الاستخبارات الوبائية ومحاكاة المنافذ الجوية",
+    page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# تصميم بصري متقدم: كحلي، أزرق داكن، وإضاءات سماوية نيونية مع خط Tajawal التقني
+# تخصيص الهوية البصرية السيادية (Deep Navy & Cyan Glow) مع خط Tajawal
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
-    
-    * {
-        font-family: 'Tajawal', sans-serif !important;
-    }
-    
-    /* خلفية المنصة العامة: كحلي ملكي عميق بتدرج لوني */
+    * { font-family: 'Tajawal', sans-serif !important; }
     .stApp {
         background: radial-gradient(circle at 50% 10%, #0d1b3e 0%, #060a17 100%) !important;
         color: #e2e8f0;
     }
-    
-    /* الشريط الجانبي */
     section[data-testid="stSidebar"] {
         background-color: rgba(10, 20, 48, 0.95) !important;
         border-left: 1px solid rgba(0, 229, 255, 0.15) !important;
     }
-    
-    /* بطاقات المقاييس الرقمية المضيئة (Glassmorphism Metric Cards) */
     div[data-testid="stMetric"] {
         background: linear-gradient(135deg, rgba(16, 35, 78, 0.6) 0%, rgba(8, 18, 42, 0.8) 100%) !important;
         border: 1px solid rgba(0, 229, 255, 0.25) !important;
         border-radius: 12px !important;
-        padding: 16px 20px !important;
+        padding: 14px 18px !important;
         box-shadow: 0 4px 20px rgba(0, 114, 255, 0.12) !important;
     }
-    
-    div[data-testid="stMetricLabel"] p {
-        color: #94a3b8 !important;
-        font-size: 0.95rem !important;
-        font-weight: 500 !important;
-    }
-    
     div[data-testid="stMetricValue"] {
         color: #00e5ff !important;
-        font-size: 2.1rem !important;
+        font-size: 1.9rem !important;
         font-weight: 900 !important;
-        text-shadow: 0 0 15px rgba(0, 229, 255, 0.35);
+        text-shadow: 0 0 12px rgba(0, 229, 255, 0.35);
     }
-    
-    /* الجداول */
-    div[data-testid="stDataFrame"] {
-        border: 1px solid rgba(0, 229, 255, 0.2) !important;
-        border-radius: 10px !important;
-        overflow: hidden;
-    }
-    
-    /* العناوين المضيئة */
-    h1, h2, h3 {
-        color: #ffffff !important;
-        letter-spacing: -0.5px;
-    }
-    
     h1 {
         background: linear-gradient(90deg, #ffffff 0%, #00e5ff 100%);
         -webkit-background-clip: text;
@@ -77,349 +47,310 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# قواعد البيانات الجيومكانية للمطارات الوطنية الرئيسية
+# قاعدة بيانات مؤشرات SPAR الثلاثية المتخصصة ومحطات الطيران
+# C.4 = الترصد | C.5 = المختبرات | C.10 = نقاط الدخول
+origins_spar_db = {
+    "cairo": {"country": "Egypt", "lat": 30.1219, "lon": 31.4056, "c4": 72, "c5": 70, "c10": 65, "duration_h": 2.2},
+    "dhaka": {"country": "Bangladesh", "lat": 23.8433, "lon": 90.3978, "c4": 55, "c5": 50, "c10": 48, "duration_h": 6.5},
+    "islamabad": {"country": "Pakistan", "lat": 33.5492, "lon": 72.8277, "c4": 60, "c5": 58, "c10": 55, "duration_h": 4.8},
+    "lahore": {"country": "Pakistan", "lat": 31.5216, "lon": 74.4036, "c4": 60, "c5": 58, "c10": 55, "duration_h": 4.5},
+    "jakarta": {"country": "Indonesia", "lat": -6.1275, "lon": 106.6537, "c4": 74, "c5": 70, "c10": 68, "duration_h": 9.5},
+    "delhi": {"country": "India", "lat": 28.5562, "lon": 77.1000, "c4": 68, "c5": 65, "c10": 60, "duration_h": 5.0},
+    "kano": {"country": "Nigeria", "lat": 12.0476, "lon": 8.5246, "c4": 45, "c5": 40, "c10": 38, "duration_h": 6.0},
+    "istanbul": {"country": "Turkey", "lat": 41.2753, "lon": 28.7519, "c4": 85, "c5": 82, "c10": 80, "duration_h": 3.5},
+    "amman": {"country": "Jordan", "lat": 31.7226, "lon": 35.9932, "c4": 78, "c5": 75, "c10": 72, "duration_h": 1.8},
+    "london": {"country": "UK", "lat": 51.4700, "lon": -0.4543, "c4": 94, "c5": 92, "c10": 90, "duration_h": 6.5}
+}
+
 national_airports = {
-    "MED": {"name": "مطار الأمير محمد بن عبدالعزيز (المدينة)", "lat": 24.5534, "lon": 39.7051, "code": "MED"},
-    "JED": {"name": "مطار الملك عبدالعزيز الدولي (جدة)", "lat": 21.6796, "lon": 39.1565, "code": "JED"},
-    "RUH": {"name": "مطار الملك خالد الدولي (الرياض)", "lat": 24.9576, "lon": 46.6988, "code": "RUH"},
-    "DMM": {"name": "مطار الملك فهد الدولي (الدمام)", "lat": 26.4712, "lon": 49.7978, "code": "DMM"}
+    "MED": {"name": "مطار الأمير محمد بن عبدالعزيز (المدينة)", "lat": 24.5534, "lon": 39.7051},
+    "JED": {"name": "مطار الملك عبدالعزيز الدولي (جدة)", "lat": 21.6796, "lon": 39.1565},
+    "RUH": {"name": "مطار الملك خالد الدولي (الرياض)", "lat": 24.9576, "lon": 46.6988}
 }
 
-# محطات الانطلاق العالمية وربطها بمؤشر WHO SPAR
-origin_nodes = {
-    "cairo": {"country": "Egypt", "lat": 30.1219, "lon": 31.4056, "spar": 68},
-    "dhaka": {"country": "Bangladesh", "lat": 23.8433, "lon": 90.3978, "spar": 52},
-    "islamabad": {"country": "Pakistan", "lat": 33.5492, "lon": 72.8277, "spar": 58},
-    "lahore": {"country": "Pakistan", "lat": 31.5216, "lon": 74.4036, "spar": 58},
-    "karachi": {"country": "Pakistan", "lat": 24.9065, "lon": 67.1608, "spar": 58},
-    "jakarta": {"country": "Indonesia", "lat": -6.1275, "lon": 106.6537, "spar": 70},
-    "surabaya": {"country": "Indonesia", "lat": -7.3798, "lon": 112.7874, "spar": 70},
-    "delhi": {"country": "India", "lat": 28.5562, "lon": 77.1000, "spar": 64},
-    "mumbai": {"country": "India", "lat": 19.0896, "lon": 72.8656, "spar": 64},
-    "kano": {"country": "Nigeria", "lat": 12.0476, "lon": 8.5246, "spar": 42},
-    "lagos": {"country": "Nigeria", "lat": 6.5774, "lon": 3.3212, "spar": 42},
-    "amman": {"country": "Jordan", "lat": 31.7226, "lon": 35.9932, "spar": 75},
-    "istanbul": {"country": "Turkey", "lat": 41.2753, "lon": 28.7519, "spar": 82},
-    "dubai": {"country": "UAE", "lat": 25.2532, "lon": 55.3657, "spar": 88},
-    "doha": {"country": "Qatar", "lat": 25.2609, "lon": 51.5651, "spar": 85},
-    "kuala lumpur": {"country": "Malaysia", "lat": 2.7456, "lon": 101.7099, "spar": 78},
-    "london": {"country": "UK", "lat": 51.4700, "lon": -0.4543, "spar": 92}
-}
-
-pathogen_metadata = {
-    "Mpox Clade I (جدري القردة)": {"weight": 1.4, "r0": 1.4},
-    "Dengue (حمى الضنك)": {"weight": 0.9, "r0": 1.8},
-    "Novel Respiratory Virus (سلالة تنفسية حادة)": {"weight": 1.6, "r0": 2.7},
-    "Cholera (الكوليرا)": {"weight": 1.1, "r0": 2.0}
-}
-
-real_epi_matrix = {
-    "Mpox Clade I (جدري القردة)": {
-        "Nigeria": 58.0, "India": 0.1, "Pakistan": 0.1, "Egypt": 0.0,
-        "Bangladesh": 0.0, "Indonesia": 0.2, "Turkey": 0.1, "Jordan": 0.0,
-        "UAE": 0.0, "Malaysia": 0.1, "UK": 0.3
+# مصفوفة الأمراض الأربعة المعتمدة علمياً
+pathogen_db = {
+    "Ebola / Marburg (حمى نزفية فيروسية - عالية الخطورة)": {
+        "r0": 1.9, "incubation_days": 8.0, "type": "contact_fluids",
+        "severity": "حرجة جداً (فتك حاد)", "tracing_rule": "direct_contacts_only",
+        "incidence": {"Nigeria": 45.0, "Pakistan": 0.0, "India": 0.0, "Egypt": 0.0, "Bangladesh": 0.0, "Indonesia": 0.0, "Turkey": 0.0, "Jordan": 0.0, "UK": 0.0}
     },
-    "Dengue (حمى الضنك)": {
-        "Bangladesh": 140.0, "India": 110.0, "Pakistan": 75.0, "Indonesia": 85.0,
-        "Nigeria": 15.0, "Egypt": 4.0, "Turkey": 2.0, "Jordan": 1.0,
-        "UAE": 0.5, "Malaysia": 60.0, "UK": 0.0
+    "Airborne TB (الدرن الرئوي المفتوح - منقول بالهواء)": {
+        "r0": 3.2, "incubation_days": 30.0, "type": "airborne",
+        "severity": "عالية ومزمنة", "tracing_rule": "full_cabin",
+        "incidence": {"Pakistan": 85.0, "India": 90.0, "Bangladesh": 78.0, "Nigeria": 60.0, "Indonesia": 70.0, "Egypt": 15.0, "Turkey": 8.0, "Jordan": 6.0, "UK": 4.0}
     },
-    "Cholera (الكوليرا)": {
-        "Nigeria": 75.0, "Pakistan": 40.0, "India": 30.0, "Bangladesh": 45.0,
-        "Egypt": 1.0, "Indonesia": 2.0, "Turkey": 0.0, "Jordan": 0.0,
-        "UAE": 0.0, "Malaysia": 0.5, "UK": 0.0
+    "Severe Influenza / Novel Corona (رذاذي حاد)": {
+        "r0": 2.5, "incubation_days": 3.5, "type": "droplet",
+        "severity": "متوسطة إلى عالية", "tracing_rule": "two_rows",
+        "incidence": {"Egypt": 30.0, "India": 40.0, "Pakistan": 35.0, "Bangladesh": 30.0, "Indonesia": 28.0, "Nigeria": 15.0, "Turkey": 20.0, "Jordan": 15.0, "UK": 22.0}
     },
-    "Novel Respiratory Virus (سلالة تنفسية حادة)": {
-        "India": 35.0, "Pakistan": 30.0, "Egypt": 22.0, "Bangladesh": 28.0,
-        "Nigeria": 18.0, "Indonesia": 25.0, "Turkey": 12.0, "Jordan": 10.0,
-        "UAE": 8.0, "Malaysia": 15.0, "UK": 14.0
+    "Chickenpox (جدري الماء - تلامسي مختلط)": {
+        "r0": 1.6, "incubation_days": 14.0, "type": "contact_skin",
+        "severity": "خفيفة إلى معتدلة", "tracing_rule": "adjacent_only",
+        "incidence": {"Pakistan": 25.0, "India": 20.0, "Egypt": 15.0, "Bangladesh": 18.0, "Nigeria": 22.0, "Indonesia": 16.0, "Turkey": 10.0, "Jordan": 8.0, "UK": 5.0}
     }
 }
 
-# دالة توليد بيانات رحلات سبتمبر موزعة على المطارات الوطنية
-@st.cache_data
-def generate_september_data():
-    np.random.seed(42)
-    origins_pool = [
-        ("Cairo", "Egypt", 285), ("Dhaka", "Bangladesh", 410),
-        ("Islamabad", "Pakistan", 330), ("Lahore", "Pakistan", 310),
-        ("Jakarta", "Indonesia", 440), ("Surabaya", "Indonesia", 415),
-        ("Delhi", "India", 380), ("Kano", "Nigeria", 360),
-        ("Istanbul", "Turkey", 250), ("Amman", "Jordan", 190),
-        ("Kuala Lumpur", "Malaysia", 320), ("Dubai", "UAE", 220),
-        ("London", "UK", 290)
-    ]
-    dest_keys = list(national_airports.keys())
-    rows = []
-    flight_num = 110
-    
-    for day in range(1, 31):
-        date_str = f"2026-09-{day:02d}"
-        for dest in dest_keys:
-            # عدد الرحلات اليومية لكل مطار
-            daily_flights = np.random.randint(2, 5) if dest in ["MED", "JED"] else np.random.randint(1, 4)
-            for _ in range(daily_flights):
-                orig, ctry, base_pax = origins_pool[np.random.randint(0, len(origins_pool))]
-                pax = base_pax + np.random.randint(-25, 35)
-                rows.append({
-                    "flight": f"SV-{flight_num}",
-                    "date": date_str,
-                    "dest": dest,
-                    "origin": orig,
-                    "country": ctry,
-                    "pax": int(pax)
-                })
-                flight_num += 2
-    return pd.DataFrame(rows)
-
-# --- الشريط الجانبي الفاخر للتحكم ---
-st.sidebar.markdown("### 🎛️ لوحة القيادة والتحكم")
-st.sidebar.markdown("---")
-
-# اختيار المطارات المتعددة (Multi-Select)
-selected_airports = st.sidebar.multiselect(
-    "المنافذ الجوية المستهدفة بالمراقبة:",
-    options=list(national_airports.keys()),
-    default=["MED", "JED"],
-    format_func=lambda x: national_airports[x]["name"]
+# --- نظام التبديل بين الشاشتين الرئيسيتين ---
+st.sidebar.title("🎛️ لوحة القيادة والتحكم")
+view_mode = st.sidebar.radio(
+    "اختر شاشة العمليات:",
+    ["1️⃣ شاشة تقييم الخطورة والفرز بصالة القدوم", "2️⃣ شاشة الاستجابة الميدانية ومحاكاة مقاعد الطائرة"]
 )
-
-if not selected_airports:
-    st.sidebar.warning("يرجى اختيار مطار واحد على الأقل.")
-    st.stop()
-
-# رفع الملف
 st.sidebar.markdown("---")
-uploaded_file = st.sidebar.file_uploader("📂 تحميل ملف الرحلات (Excel / CSV):", type=["xlsx", "xls", "csv"])
 
-# اختيار المرض والمضاعف
-st.sidebar.markdown("---")
-selected_pathogen = st.sidebar.selectbox("🦠 التهديد الوبائي المستهدف:", list(pathogen_metadata.keys()))
-surge_multiplier = st.sidebar.slider("مضاعف التفشي الوبائي (Surge Factor):", 0.5, 3.0, 1.0, 0.1)
+# اختيار المرض والمنافذ
+selected_pathogen_name = st.sidebar.selectbox("🦠 التهديد الوبائي المحدد:", list(pathogen_db.keys()))
+p_info = pathogen_db[selected_pathogen_name]
 
-# تجهيز البيانات
-if uploaded_file is not None:
-    try:
-        df_raw = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file)
-        if "dest" not in df_raw.columns:
-            df_raw["dest"] = selected_airports[0]
-        st.sidebar.success(f"تم تحميل {len(df_raw)} رحلة من ملفك.")
-    except Exception as e:
-        st.sidebar.error(f"خطأ في قراءة الملف: {e}")
+# ==========================================
+# الشاشة الأولى: تقييم الخطورة وتحديد المناظرة
+# ==========================================
+if view_mode == "1️⃣ شاشة تقييم الخطورة والفرز بصالة القدوم":
+    st.title("🌐 تقييم خطورة الرحلات ومستوى المناظرة الميدانية")
+    st.caption(f"المرض المراقب: **{selected_pathogen_name}** | شدة المرض: **{p_info['severity']}**")
+
+    # اختيار المطارات المستهدفة
+    selected_airports = st.sidebar.multiselect(
+        "المنافذ الوطنية المراقبة:",
+        options=list(national_airports.keys()),
+        default=["MED", "JED"],
+        format_func=lambda x: national_airports[x]["name"]
+    )
+    if not selected_airports:
+        st.warning("يرجى اختيار مطار واحد على الأقل.")
         st.stop()
-else:
-    df_raw = generate_september_data()
 
-# فلترة البيانات حسب المطارات المختارة
-df_active = df_raw[df_raw["dest"].isin(selected_airports)].copy()
+    uploaded_file = st.sidebar.file_uploader("📂 رفع جدول رحلات (Excel/CSV):", type=["xlsx", "xls", "csv"])
 
-# ربط الإحداثيات والبيانات الوبائية
-def enrich(row):
-    orig = str(row.get("origin", "")).lower().strip()
-    dest = row.get("dest", "MED")
-    matched_country = str(row.get("country", "")).strip()
-    
-    o_lat, o_lon, spar = 25.0, 50.0, 60
-    for city, info in origin_nodes.items():
-        if city in orig:
-            o_lat, o_lon, spar = info["lat"], info["lon"], info["spar"]
-            matched_country = info["country"]
-            break
-            
-    d_info = national_airports.get(dest, national_airports["MED"])
-    d_lat, d_lon = d_info["lat"], d_info["lon"]
-    
-    pathogen_rates = real_epi_matrix.get(selected_pathogen, {})
-    specific_incidence = pathogen_rates.get(matched_country, 5.0)
-    
-    return pd.Series([o_lat, o_lon, d_lat, d_lon, spar, matched_country, specific_incidence])
+    # توليد بيانات رحلات واقعية
+    @st.cache_data
+    def get_schedule():
+        data = []
+        flight_no = 200
+        origins_keys = list(origins_spar_db.keys())
+        for day in range(1, 31):
+            date_s = f"2026-09-{day:02d}"
+            for dest in ["MED", "JED", "RUH"]:
+                for _ in range(np.random.randint(2, 4)):
+                    orig_k = origins_keys[np.random.randint(0, len(origins_keys))]
+                    orig_data = origins_spar_db[orig_k]
+                    data.append({
+                        "flight": f"SV-{flight_no}",
+                        "date": date_s,
+                        "dest": dest,
+                        "origin_city": orig_k.capitalize(),
+                        "country": orig_data["country"],
+                        "pax": int(np.random.randint(260, 420)),
+                        "duration_h": orig_data["duration_h"],
+                        "c4": orig_data["c4"], "c5": orig_data["c5"], "c10": orig_data["c10"],
+                        "lat": orig_data["lat"], "lon": orig_data["lon"]
+                    })
+                    flight_no += 2
+        return pd.DataFrame(data)
 
-enrich_res = df_active.apply(enrich, axis=1)
-df_active["orig_lat"], df_active["orig_lon"] = enrich_res[0], enrich_res[1]
-df_active["dest_lat"], df_active["dest_lon"] = enrich_res[2], enrich_res[3]
-df_active["spar"] = enrich_res[4]
-df_active["country_matched"] = enrich_res[5]
-df_active["disease_incidence"] = enrich_res[6]
-
-# معادلة تقييم الخطر والفرز
-p_data = pathogen_metadata[selected_pathogen]
-df_active["adjusted_incidence"] = df_active["disease_incidence"] * surge_multiplier
-df_active["surveillance_gap"] = (100 - df_active["spar"]) / 40.0
-
-df_active["risk_score"] = np.clip(
-    ((df_active["adjusted_incidence"] / 100000.0) * df_active["pax"] * p_data["weight"] * df_active["surveillance_gap"] * 1500) * (p_data["r0"] / 1.5),
-    5.0, 99.2
-).round(1)
-
-def assign_tier(score):
-    if score >= 65:
-        return "حرج (أحمر): عزل وقائي وفرز مباشر", "#ff3366", "حرج"
-    elif score >= 35:
-        return "متوسط (برتقالي): مسح حراري واستقصاء بصري", "#ff9900", "متوسط"
+    if uploaded_file:
+        df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file)
     else:
-        return "منخفض (سماوي): مراقبة روتينية اعتيادية", "#00e5ff", "منخفض"
+        df = get_schedule()
 
-tiers = df_active["risk_score"].apply(assign_tier)
-df_active["protocol"] = [t[0] for t in tiers]
-df_active["color"] = [t[1] for t in tiers]
-df_active["level"] = [t[2] for t in tiers]
+    df = df[df["dest"].isin(selected_airports)].copy()
 
-# تصفية التاريخ
-st.sidebar.markdown("---")
-st.sidebar.subheader("📅 نافذة التتبع الزمني")
-all_dates = sorted(list(df_active["date"].dropna().unique()))
-mode = st.sidebar.radio("نطاق العرض:", ["كامل شهر سبتمبر", "يوم محدد"])
+    # محرك الحساب العلمي: R0 * SPAR Gap * Flight/Incubation Ratio
+    def calculate_risk(row):
+        ctry = row["country"]
+        inc = p_info["incidence"].get(ctry, 5.0)
+        
+        # متوسط قدرات الرصد والمختبرات والمنافذ الثلاثية
+        spar_core = (row["c4"] + row["c5"] + row["c10"]) / 3.0
+        gap_factor = (100.0 - spar_core) / 35.0
+        
+        # نسبة زمن الطيران لفترة الحضانة
+        incubation_hrs = p_info["incubation_days"] * 24.0
+        flight_ratio = 1.0 + (row["duration_h"] / incubation_hrs)
+        
+        # حساب السكور
+        score = (inc / 100000.0) * row["pax"] * p_info["r0"] * gap_factor * flight_ratio * 3200
+        return np.clip(score, 6.0, 98.5).round(1)
 
-if mode == "يوم محدد" and len(all_dates) > 0:
-    cur_date = st.sidebar.select_slider("اختر اليوم:", options=all_dates, value=all_dates[0])
-    df_view = df_active[df_active["date"] == cur_date].copy()
-    scope_desc = f"ليوم {cur_date}"
+    df["risk_score"] = df.apply(calculate_risk, axis=1)
+
+    # تحديد مستوى المناظرة بصالة المطار (بدون صعود الطائرة)
+    def get_tier(score):
+        if score >= 65:
+            return "مناظرة مشددة (أحمر): تدقيق بصري وحراري فردي عند المخرج وفحص إقرارات", "#ff3366", "مشددة"
+        elif score >= 35:
+            return "مناظرة معززة (برتقالي): مسح حراري نشط بالكاميرات وفرز عام", "#ff9900", "معززة"
+        else:
+            return "مناظرة روتينية (سماوي): تدفق طبيعي ومراقبة اعتيادية للمسافرين", "#00e5ff", "روتينية"
+
+    tiers = df["risk_score"].apply(get_tier)
+    df["screening_action"] = [t[0] for t in tiers]
+    df["color"] = [t[1] for t in tiers]
+    df["tier"] = [t[2] for t in tiers]
+
+    # فلترة التاريخ
+    st.sidebar.markdown("---")
+    dates = sorted(list(df["date"].unique()))
+    chosen_date = st.sidebar.select_slider("📅 تاريخ المناوبة والفرز:", options=dates, value=dates[0])
+    df_day = df[df["date"] == chosen_date].copy()
+
+    # البطاقات الإحصائية
+    k1, k2, k3, k4 = st.columns(4)
+    crit_c = len(df_day[df_day["tier"] == "مشددة"])
+    k1.metric("رحلات اليوم المرصودة", f"{len(df_day)} رحلة")
+    k2.metric("إجمالي المسافرين الوافدين", f"{df_day['pax'].sum():,} مسافر")
+    k3.metric("رحلات المناظرة المشددة", f"{crit_c}", delta="تتطلب تركيزاً سريرياً" if crit_c > 0 else "مستقر", delta_color="inverse")
+    k4.metric("متوسط مؤشر الخطر العام", f"{df_day['risk_score'].mean():.1f} / 100")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.subheader(f"📋 جدول فرز وتوزيع درجات المناظرة بصالة القدوم ({chosen_date})")
+    view_df = df_day[["flight", "dest", "origin_city", "country", "pax", "duration_h", "risk_score", "screening_action"]].sort_values(by="risk_score", ascending=False).reset_index(drop=True)
+    view_df.columns = ["الرحلة", "المنفذ", "محطة الإقلاع", "الدولة", "الركاب", "ساعات الطيران", "مؤشر الخطورة", "إجراء المناظرة بصالة المطار"]
+    st.dataframe(view_df, use_container_width=True)
+
+# ==========================================
+# الشاشة الثانية: الاستجابة ومحاكاة مقاعد الطائرة
+# ==========================================
 else:
-    df_view = df_active.copy()
-    scope_desc = "لكامل شهر سبتمبر (30 يوماً)"
+    st.title("🚨 بروتوكول البلاغات وحصر مخالطي الطائرة")
+    st.caption("تُفعل هذه الشاشة حصراً عند ورود بلاغ من كابتن الطائرة أو رصد حالة مشتبهة أثناء المناظرة.")
 
-# --- الشاشة الرئيسية ---
-st.title("🌐 المنظومة الوطنية للاستخبارات الوبائية ومراقبة المنافذ")
-monitored_names = " ، ".join([national_airports[k]["name"] for k in selected_airports])
-st.caption(f"المنافذ النشطة: **{monitored_names}** | النطاق: **{scope_desc}** | التهديد الوبائي: **{selected_pathogen}**")
+    col_setup, col_meta = st.columns([4, 6])
+    
+    with col_setup:
+        st.subheader("📝 تفاصيل الحالة المشتبهة")
+        flight_id = st.text_input("رقم الرحلة:", value="SV-214")
+        seat_row = st.number_input("رقم صف المقعد للحالة (1 - 30):", min_value=1, max_value=30, value=12)
+        seat_letter = st.selectbox("رمز المقعد:", ["A", "B", "C", "D", "E", "F"], index=1)
+        reported_seat = f"{seat_row}{seat_letter}"
+        
+        st.info(f"**المرض المشتبه:** {selected_pathogen_name}\n\n**قاعدة الحصر:** `{p_info['tracing_rule']}`")
 
-# المؤشرات السيادية الرقمية
-m1, m2, m3, m4 = st.columns(4)
-total_f = len(df_view)
-total_p = int(df_view["pax"].sum())
-crit_f = len(df_view[df_view["level"] == "حرج"])
-avg_r = df_view["risk_score"].mean() if len(df_view) > 0 else 0
+    # حساب المقاعد المحصورة وفق القواعد السريرية
+    # الطائرة: 30 صفاً، كل صف 6 مقاعد (A, B, C | D, E, F)
+    letters = ["A", "B", "C", "D", "E", "F"]
+    total_rows = 30
+    
+    quarantine_seats = []
+    
+    if p_info["tracing_rule"] == "full_cabin":
+        # الدرن الهوائي: حصر المقصورة كاملة
+        for r in range(1, total_rows + 1):
+            for l in letters:
+                if f"{r}{l}" != reported_seat:
+                    quarantine_seats.append(f"{r}{l}")
+        rule_desc = "حصر المقصورة بالكامل (Airborne Spread)"
+        
+    elif p_info["tracing_rule"] == "two_rows":
+        # رذاذي (كورونا/إنفلونزا): صفين للأمام وصفين للخلف + نفس الصف
+        min_r = max(1, seat_row - 2)
+        max_r = min(total_rows, seat_row + 2)
+        for r in range(min_r, max_r + 1):
+            for l in letters:
+                if f"{r}{l}" != reported_seat:
+                    quarantine_seats.append(f"{r}{l}")
+        rule_desc = "حصر صفين للأمام وصفين للخلف ومقاعد نفس الصف (2 Rows Radius)"
+        
+    elif p_info["tracing_rule"] == "adjacent_only":
+        # جدري الماء: المقاعد المجاورة في نفس الصف
+        cur_idx = letters.index(seat_letter)
+        adj_letters = []
+        if cur_idx > 0: adj_letters.append(letters[cur_idx - 1])
+        if cur_idx < 5: adj_letters.append(letters[cur_idx + 1])
+        for l in adj_letters:
+            quarantine_seats.append(f"{seat_row}{l}")
+        rule_desc = "حصر المقاعد الملاصقة يميناً ويساراً في نفس الصف"
+        
+    else: # direct_contacts_only (إيبولا)
+        # إيبولا: الملاصقين فوراً + طاقم الخدمة ومستخدمي الحمام
+        cur_idx = letters.index(seat_letter)
+        if cur_idx > 0: quarantine_seats.append(f"{seat_row}{letters[cur_idx - 1]}")
+        if cur_idx < 5: quarantine_seats.append(f"{seat_row}{letters[cur_idx + 1]}")
+        rule_desc = "الملاصقين المباشرين فقط + طاقم الخدمة وحظر تفريغ الصرف الصحي"
 
-m1.metric("إجمالي الرحلات المرصودة", f"{total_f:,}")
-m2.metric("إجمالي المسافرين الوافدين", f"{total_p:,}")
-m3.metric("الرحلات عالية الخطورة (عزل/فرز)", f"{crit_f}", delta=f"{crit_f} رحلة حرجة" if crit_f > 0 else "الوضع مستقر", delta_color="inverse")
-m4.metric("مؤشر الخطر الوبائي العام", f"{avg_r:.1f} / 100")
+    with col_meta:
+        st.subheader("🎯 مخرجات حصر المخالطين والتدخل الميداني")
+        m1, m2, m3 = st.columns(3)
+        m1.metric("المقعد المصاب", reported_seat)
+        m2.metric("عدد المخالطين المطلوب حصرهم", f"{len(quarantine_seats)} راكب")
+        m3.metric("مستوى الاستجابة", "عزل فوري ونقل طبي" if "Ebola" in selected_pathogen_name else "فرز ومتابعة وبائية")
+        
+        st.warning(f"**البروتوكول الميداني المعتمد:** {rule_desc}")
+        st.markdown("""
+        * **إجراء الطاقم الطبي:** الصعود بملابس الوقاية (PPE) المحددة لنمط المرض.
+        * **إجراء الصالة:** عزل الحالة المشتبهة إلى غرفة العزل المؤقتة بالمنفذ.
+        * **المخالطون:** سحب بيانات الاتصال وتوقيع الإقرار الصحي وحجز السجلات للتتبع الوبائي لمدة 14-21 يوماً.
+        """)
 
-st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("---")
+    st.subheader("✈️ المحاكاة التفاعلية لمقصورة الطائرة وتوزيع المقاعد المحصورة")
+    st.caption("المقعد الأحمر الوامض يمثل الحالة المشتبهة، والمقاعد البرتقالية تمثل دائرة المخالطين الملزم حصرهم، والمقاعد السماوية آمنة.")
 
-# المخطط الزمني للرصد
-st.subheader("📈 مؤشر التوزيع الزمني للرحلات وذروة المخاطر الوبائية طوال الشهر")
-daily_grp = df_active.groupby(["date", "level"]).size().reset_index(name="count")
-daily_piv = daily_grp.pivot(index="date", columns="level", values="count").fillna(0)
+    # بناء شبكة المقاعد بـ Plotly
+    rows_list, cols_list, seat_labels, seat_status, colors = [], [], [], [], []
+    col_mapping = {"A": 1, "B": 2, "C": 3, "D": 4.5, "E": 5.5, "F": 6.5} # ممر في المنتصف
 
-for col in ["حرج", "متوسط", "منخفض"]:
-    if col not in daily_piv.columns:
-        daily_piv[col] = 0
+    for r in range(1, total_rows + 1):
+        for l in letters:
+            s_name = f"{r}{l}"
+            rows_list.append(r)
+            cols_list.append(col_mapping[l])
+            seat_labels.append(s_name)
+            
+            if s_name == reported_seat:
+                seat_status.append("الحالة المشتبهة (عزل مباشر)")
+                colors.append("#ff3366") # أحمر فاقع
+            elif s_name in quarantine_seats:
+                seat_status.append("مخالط محصور (تتبع وعزل/فحص)")
+                colors.append("#ff9900") # برتقالي متوهج
+            else:
+                seat_status.append("مسافر غير مشتبه")
+                colors.append("#0c2340") # كحلي داكن
 
-fig_timeline = go.Figure()
-fig_timeline.add_trace(go.Bar(name="حرج (أحمر)", x=daily_piv.index, y=daily_piv["حرج"], marker_color="#ff3366"))
-fig_timeline.add_trace(go.Bar(name="متوسط (برتقالي)", x=daily_piv.index, y=daily_piv["متوسط"], marker_color="#ff9900"))
-fig_timeline.add_trace(go.Bar(name="منخفض (سماوي)", x=daily_piv.index, y=daily_piv["منخفض"], marker_color="#00e5ff"))
+    fig_seats = go.Figure()
 
-fig_timeline.update_layout(
-    barmode="stack",
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(10, 20, 48, 0.6)",
-    margin=dict(l=0, r=0, t=10, b=0),
-    height=260,
-    font=dict(family="Tajawal", color="#94a3b8"),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-    xaxis=dict(gridcolor="rgba(0, 229, 255, 0.1)"),
-    yaxis=dict(gridcolor="rgba(0, 229, 255, 0.1)")
-)
-st.plotly_chart(fig_timeline, use_container_width=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-# الخريطة الكحلية البحرية السيادية
-st.subheader(f"🌐 خريطة التدفق الجوي والمسارات الوبائية ثلاثية الأبعاد ({scope_desc})")
-
-fig_map = go.Figure()
-
-# رسم المسارات
-for _, r in df_view.iterrows():
-    fig_map.add_trace(go.Scattergeo(
-        lon=[r["orig_lon"], r["dest_lon"]],
-        lat=[r["orig_lat"], r["dest_lat"]],
-        mode="lines",
-        line=dict(width=2.2, color=r["color"]),
-        opacity=0.75,
-        hoverinfo="none",
-        showlegend=False
+    fig_seats.add_trace(go.Scatter(
+        x=cols_list,
+        y=rows_list,
+        mode="markers+text",
+        text=seat_labels,
+        textposition="middle center",
+        textfont=dict(size=9, color="#ffffff", family="Tajawal"),
+        marker=dict(
+            size=22,
+            color=colors,
+            symbol="square",
+            line=dict(width=1.5, color="rgba(0, 229, 255, 0.4)")
+        ),
+        hoverinfo="text",
+        hovertext=[f"المقعد: {seat_labels[i]}<br>الحالة: {seat_status[i]}" for i in range(len(seat_labels))]
     ))
 
-# نقاط الإقلاع
-fig_map.add_trace(go.Scattergeo(
-    lon=df_view["orig_lon"],
-    lat=df_view["orig_lat"],
-    text=df_view.apply(lambda r: f"الرحلة: {r['flight']}<br>التاريخ: {r['date']}<br>المنشأ: {r['origin']} ({r['country_matched']})<br>الوجهة: {r['dest']}<br>المسافرين: {r['pax']}<br>الخطر الوبائي: {r['risk_score']}<br>الإجراء: {r['protocol']}", axis=1),
-    hoverinfo="text",
-    mode="markers",
-    marker=dict(size=11, color=df_view["color"], line=dict(width=1, color="#ffffff")),
-    name="محطات الإقلاع الدولية"
-))
-
-# نقاط المنافذ الوطنية المستهدفة
-dest_lats = [national_airports[k]["lat"] for k in selected_airports]
-dest_lons = [national_airports[k]["lon"] for k in selected_airports]
-dest_names = [national_airports[k]["name"] for k in selected_airports]
-
-fig_map.add_trace(go.Scattergeo(
-    lon=dest_lons,
-    lat=dest_lats,
-    text=dest_names,
-    hoverinfo="text",
-    mode="markers+text",
-    textposition="bottom center",
-    marker=dict(size=18, color="#00e5ff", symbol="star", line=dict(width=2, color="#ffffff")),
-    name="المنافذ الوطنية المراقبة"
-))
-
-fig_map.update_layout(
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    margin=dict(l=0, r=0, t=10, b=0),
-    height=550,
-    geo=dict(
-        scope="world",
-        projection_type="natural earth",
-        showland=True,
-        landcolor="#0c1633",
-        countrycolor="#1e3a6e",
-        coastlinecolor="#1e3a6e",
-        showocean=True,
-        oceancolor="#040814",
-        center=dict(lat=24.5, lon=45.0),
-        projection_scale=2.3
-    )
-)
-st.plotly_chart(fig_map, use_container_width=True)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-# الجداول الإحصائية
-c_tbl, c_bar = st.columns([6, 4])
-
-with c_tbl:
-    st.subheader("📋 سجل فرز الرحلات العملياتي")
-    cols_to_show = ["flight", "date", "dest", "origin", "country_matched", "pax", "disease_incidence", "risk_score", "level", "protocol"]
-    disp_df = df_view[cols_to_show].sort_values(by="risk_score", ascending=False).reset_index(drop=True)
-    disp_df.columns = ["الرحلة", "التاريخ", "المنفذ", "محطة الإقلاع", "الدولة", "الركاب", "معدل التفشي", "مؤشر الخطر", "المستوى", "البروتوكول الطبي"]
-    st.dataframe(disp_df, use_container_width=True)
-
-with c_bar:
-    st.subheader("📊 توزيع مؤشر الخطر حسب محطات الإقلاع")
-    agg_origins = df_view.groupby("origin")["risk_score"].mean().reset_index()
-    fig_b = px.bar(
-        agg_origins.sort_values(by="risk_score"),
-        x="risk_score",
-        y="origin",
-        orientation="h",
-        color="risk_score",
-        color_continuous_scale=["#00e5ff", "#ff9900", "#ff3366"],
-    )
-    fig_b.update_layout(
+    fig_seats.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(10, 20, 48, 0.6)",
-        margin=dict(l=0, r=0, t=10, b=0),
-        height=350,
-        font=dict(family="Tajawal", color="#94a3b8"),
-        xaxis=dict(gridcolor="rgba(0, 229, 255, 0.1)"),
-        yaxis=dict(gridcolor="rgba(0, 229, 255, 0.1)")
+        plot_bgcolor="rgba(8, 18, 42, 0.7)",
+        height=750,
+        margin=dict(l=20, r=20, t=30, b=20),
+        xaxis=dict(
+            tickmode="array",
+            tickvals=[1, 2, 3, 4.5, 5.5, 6.5],
+            ticktext=["A", "B", "C", "D (ممر)", "E", "F"],
+            showgrid=False,
+            zeroline=False,
+            color="#00e5ff"
+        ),
+        yaxis=dict(
+            title="صفوف الطائرة (1 - 30)",
+            tickmode="linear",
+            tick0=1,
+            dtick=1,
+            autorange="reversed",
+            showgrid=True,
+            gridcolor="rgba(0, 229, 255, 0.08)",
+            color="#94a3b8"
+        )
     )
-    st.plotly_chart(fig_b, use_container_width=True)
+
+    st.plotly_chart(fig_seats, use_container_width=True)
