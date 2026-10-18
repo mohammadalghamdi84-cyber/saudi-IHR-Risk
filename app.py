@@ -3,11 +3,12 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
+import io
 
 # إعدادات واجهة النظام
 st.set_page_config(
-    page_title="منظومة الاستخبارات الوبائية ومحاكاة المنافذ الجوية",
-    page_icon="🛡️",
+    page_title="المنظومة الوطنية للاستخبارات الوبائية بمنافذ الدخول",
+    page_icon="✈️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -47,8 +48,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# قاعدة بيانات مؤشرات SPAR الثلاثية المتخصصة ومحطات الطيران
-# C.4 = الترصد | C.5 = المختبرات | C.10 = نقاط الدخول
+# قاعدة بيانات SPAR المتخصصة ومحطات القدوم الدولية
 origins_spar_db = {
     "cairo": {"country": "Egypt", "lat": 30.1219, "lon": 31.4056, "c4": 72, "c5": 70, "c10": 65, "duration_h": 2.2},
     "dhaka": {"country": "Bangladesh", "lat": 23.8433, "lon": 90.3978, "c4": 55, "c5": 50, "c10": 48, "duration_h": 6.5},
@@ -68,12 +68,12 @@ national_airports = {
     "RUH": {"name": "مطار الملك خالد الدولي (الرياض)", "lat": 24.9576, "lon": 46.6988}
 }
 
-# مصفوفة الأمراض الأربعة المعتمدة علمياً
+# مصفوفة الأوبئة الأربعة المعتمدة
 pathogen_db = {
     "Ebola / Marburg (حمى نزفية فيروسية - عالية الخطورة)": {
         "r0": 1.9, "incubation_days": 8.0, "type": "contact_fluids",
         "severity": "حرجة جداً (فتك حاد)", "tracing_rule": "direct_contacts_only",
-        "incidence": {"Nigeria": 45.0, "Pakistan": 0.0, "India": 0.0, "Egypt": 0.0, "Bangladesh": 0.0, "Indonesia": 0.0, "Turkey": 0.0, "Jordan": 0.0, "UK": 0.0}
+        "incidence": {"Nigeria": 48.0, "Pakistan": 0.0, "India": 0.0, "Egypt": 0.0, "Bangladesh": 0.0, "Indonesia": 0.0, "Turkey": 0.0, "Jordan": 0.0, "UK": 0.0}
     },
     "Airborne TB (الدرن الرئوي المفتوح - منقول بالهواء)": {
         "r0": 3.2, "incubation_days": 30.0, "type": "airborne",
@@ -92,26 +92,24 @@ pathogen_db = {
     }
 }
 
-# --- نظام التبديل بين الشاشتين الرئيسيتين ---
-st.sidebar.title("🎛️ لوحة القيادة والتحكم")
+# شريط التبديل بين الشاشتين
+st.sidebar.title("🎛️ مركز المراقبة والتحكم")
 view_mode = st.sidebar.radio(
     "اختر شاشة العمليات:",
-    ["1️⃣ شاشة تقييم الخطورة والفرز بصالة القدوم", "2️⃣ شاشة الاستجابة الميدانية ومحاكاة مقاعد الطائرة"]
+    ["1️⃣ شاشة التنبؤ والمناظرة (شهر سبتمبر كاملاً)", "2️⃣ مقصورة الطائرة التفاعلية وحصر المخالطين"]
 )
 st.sidebar.markdown("---")
 
-# اختيار المرض والمنافذ
-selected_pathogen_name = st.sidebar.selectbox("🦠 التهديد الوبائي المحدد:", list(pathogen_db.keys()))
+selected_pathogen_name = st.sidebar.selectbox("🦠 التهديد الوبائي المستهدف:", list(pathogen_db.keys()))
 p_info = pathogen_db[selected_pathogen_name]
 
-# ==========================================
-# الشاشة الأولى: تقييم الخطورة وتحديد المناظرة
-# ==========================================
-if view_mode == "1️⃣ شاشة تقييم الخطورة والفرز بصالة القدوم":
-    st.title("🌐 تقييم خطورة الرحلات ومستوى المناظرة الميدانية")
-    st.caption(f"المرض المراقب: **{selected_pathogen_name}** | شدة المرض: **{p_info['severity']}**")
+# =========================================================================
+# الشاشة الأولى: التنبؤ الوبائي لشهر سبتمبر بالكامل + فرز الأيام
+# =========================================================================
+if view_mode == "1️⃣ شاشة التنبؤ والمناظرة (شهر سبتمبر كاملاً)":
+    st.title("🌐 منظومة التنبؤ الوبائي ومناظرة رحلات شهر سبتمبر")
+    st.caption(f"المرض المراقب: **{selected_pathogen_name}** | مؤشر الشدة: **{p_info['severity']}**")
 
-    # اختيار المطارات المستهدفة
     selected_airports = st.sidebar.multiselect(
         "المنافذ الوطنية المراقبة:",
         options=list(national_airports.keys()),
@@ -122,235 +120,332 @@ if view_mode == "1️⃣ شاشة تقييم الخطورة والفرز بصا�
         st.warning("يرجى اختيار مطار واحد على الأقل.")
         st.stop()
 
-    uploaded_file = st.sidebar.file_uploader("📂 رفع جدول رحلات (Excel/CSV):", type=["xlsx", "xls", "csv"])
+    uploaded_file = st.sidebar.file_uploader("📂 تحميل جدول رحلات سبتمبر (Excel / CSV):", type=["xlsx", "xls", "csv"])
 
-    # توليد بيانات رحلات واقعية
     @st.cache_data
-    def get_schedule():
-        data = []
-        flight_no = 200
+    def generate_full_september_schedule():
+        np.random.seed(42)
         origins_keys = list(origins_spar_db.keys())
+        data = []
+        flight_idx = 100
         for day in range(1, 31):
-            date_s = f"2026-09-{day:02d}"
+            date_str = f"2026-09-{day:02d}"
             for dest in ["MED", "JED", "RUH"]:
-                for _ in range(np.random.randint(2, 4)):
+                daily_flights = np.random.randint(2, 5) if dest in ["MED", "JED"] else np.random.randint(1, 3)
+                for _ in range(daily_flights):
                     orig_k = origins_keys[np.random.randint(0, len(origins_keys))]
                     orig_data = origins_spar_db[orig_k]
                     data.append({
-                        "flight": f"SV-{flight_no}",
-                        "date": date_s,
+                        "flight": f"SV-{flight_idx}",
+                        "date": date_str,
                         "dest": dest,
                         "origin_city": orig_k.capitalize(),
                         "country": orig_data["country"],
-                        "pax": int(np.random.randint(260, 420)),
+                        "pax": int(np.random.randint(270, 430)),
                         "duration_h": orig_data["duration_h"],
                         "c4": orig_data["c4"], "c5": orig_data["c5"], "c10": orig_data["c10"],
                         "lat": orig_data["lat"], "lon": orig_data["lon"]
                     })
-                    flight_no += 2
+                    flight_idx += 2
         return pd.DataFrame(data)
 
     if uploaded_file:
-        df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file)
+        df_all = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file)
     else:
-        df = get_schedule()
+        df_all = generate_full_september_schedule()
 
-    df = df[df["dest"].isin(selected_airports)].copy()
+    df_filtered = df_all[df_all["dest"].isin(selected_airports)].copy()
 
-    # محرك الحساب العلمي: R0 * SPAR Gap * Flight/Incubation Ratio
+    # الحساب العلمي المبني على SPAR وفترة الحضانة
     def calculate_risk(row):
         ctry = row["country"]
         inc = p_info["incidence"].get(ctry, 5.0)
-        
-        # متوسط قدرات الرصد والمختبرات والمنافذ الثلاثية
         spar_core = (row["c4"] + row["c5"] + row["c10"]) / 3.0
         gap_factor = (100.0 - spar_core) / 35.0
-        
-        # نسبة زمن الطيران لفترة الحضانة
         incubation_hrs = p_info["incubation_days"] * 24.0
         flight_ratio = 1.0 + (row["duration_h"] / incubation_hrs)
-        
-        # حساب السكور
         score = (inc / 100000.0) * row["pax"] * p_info["r0"] * gap_factor * flight_ratio * 3200
         return np.clip(score, 6.0, 98.5).round(1)
 
-    df["risk_score"] = df.apply(calculate_risk, axis=1)
+    df_filtered["risk_score"] = df_filtered.apply(calculate_risk, axis=1)
 
-    # تحديد مستوى المناظرة بصالة المطار (بدون صعود الطائرة)
-    def get_tier(score):
+    def assign_tier(score):
         if score >= 65:
-            return "مناظرة مشددة (أحمر): تدقيق بصري وحراري فردي عند المخرج وفحص إقرارات", "#ff3366", "مشددة"
+            return "مناظرة مشددة (أحمر): تدقيق بصري وحراري فردي", "#ff3366", "مشددة"
         elif score >= 35:
-            return "مناظرة معززة (برتقالي): مسح حراري نشط بالكاميرات وفرز عام", "#ff9900", "معززة"
+            return "مناظرة معززة (برتقالي): مسح حراري نشط بالكاميرات", "#ff9900", "معززة"
         else:
-            return "مناظرة روتينية (سماوي): تدفق طبيعي ومراقبة اعتيادية للمسافرين", "#00e5ff", "روتينية"
+            return "مناظرة روتينية (سماوي): مراقبة اعتيادية للمسافرين", "#00e5ff", "روتينية"
 
-    tiers = df["risk_score"].apply(get_tier)
-    df["screening_action"] = [t[0] for t in tiers]
-    df["color"] = [t[1] for t in tiers]
-    df["tier"] = [t[2] for t in tiers]
+    tiers = df_filtered["risk_score"].apply(assign_tier)
+    df_filtered["action"] = [t[0] for t in tiers]
+    df_filtered["color"] = [t[1] for t in tiers]
+    df_filtered["level"] = [t[2] for t in tiers]
 
-    # فلترة التاريخ
+    # فلترة التاريخ (كامل الشهر مقابل يوم محدد)
     st.sidebar.markdown("---")
-    dates = sorted(list(df["date"].unique()))
-    chosen_date = st.sidebar.select_slider("📅 تاريخ المناوبة والفرز:", options=dates, value=dates[0])
-    df_day = df[df["date"] == chosen_date].copy()
+    st.sidebar.subheader("📅 نافذة التتبع الزمني")
+    date_options = sorted(list(df_filtered["date"].unique()))
+    time_scope = st.sidebar.radio("نطاق العرض:", ["كامل شهر سبتمبر (30 يوماً)", "تحديد يوم مخصص"])
 
-    # البطاقات الإحصائية
+    if time_scope == "تحديد يوم مخصص":
+        active_day = st.sidebar.select_slider("اختر اليوم المطلوب:", options=date_options, value=date_options[0])
+        df_view = df_filtered[df_filtered["date"] == active_day].copy()
+        scope_title = f"ليوم {active_day}"
+    else:
+        df_view = df_filtered.copy()
+        scope_title = "لكامل شهر سبتمبر (140+ رحلة)"
+
+    # المؤشرات الرئيسية
     k1, k2, k3, k4 = st.columns(4)
-    crit_c = len(df_day[df_day["tier"] == "مشددة"])
-    k1.metric("رحلات اليوم المرصودة", f"{len(df_day)} رحلة")
-    k2.metric("إجمالي المسافرين الوافدين", f"{df_day['pax'].sum():,} مسافر")
-    k3.metric("رحلات المناظرة المشددة", f"{crit_c}", delta="تتطلب تركيزاً سريرياً" if crit_c > 0 else "مستقر", delta_color="inverse")
-    k4.metric("متوسط مؤشر الخطر العام", f"{df_day['risk_score'].mean():.1f} / 100")
+    total_f = len(df_view)
+    total_p = int(df_view["pax"].sum())
+    crit_f = len(df_view[df_view["level"] == "مشددة"])
+    avg_r = df_view["risk_score"].mean() if total_f > 0 else 0
+
+    k1.metric("إجمالي الرحلات المرصودة", f"{total_f:,}")
+    k2.metric("إجمالي المسافرين الوافدين", f"{total_p:,}")
+    k3.metric("رحلات المناظرة المشددة", f"{crit_f}", delta=f"{crit_f} رحلة حرجة" if crit_f > 0 else "الوضع مستقر", delta_color="inverse")
+    k4.metric("متوسط الخطر الوبائي العام", f"{avg_r:.1f} / 100")
 
     st.markdown("<br>", unsafe_allow_html=True)
-    st.subheader(f"📋 جدول فرز وتوزيع درجات المناظرة بصالة القدوم ({chosen_date})")
-    view_df = df_day[["flight", "dest", "origin_city", "country", "pax", "duration_h", "risk_score", "screening_action"]].sort_values(by="risk_score", ascending=False).reset_index(drop=True)
-    view_df.columns = ["الرحلة", "المنفذ", "محطة الإقلاع", "الدولة", "الركاب", "ساعات الطيران", "مؤشر الخطورة", "إجراء المناظرة بصالة المطار"]
-    st.dataframe(view_df, use_container_width=True)
 
-# ==========================================
-# الشاشة الثانية: الاستجابة ومحاكاة مقاعد الطائرة
-# ==========================================
+    # المخطط الزمني لتوزيع المخاطر طوال شهر سبتمبر
+    st.subheader("📈 التوزيع الزمني لمستويات الفرز طوال شهر سبتمبر")
+    st.caption("يكشف هذا المخطط أيام الذروة الوبائية في المطار وأعداد الرحلات التي تتطلب مناظرة مشددة يوماً بيوم.")
+
+    daily_summary = df_filtered.groupby(["date", "level"]).size().reset_index(name="count")
+    daily_pivot = daily_summary.pivot(index="date", columns="level", values="count").fillna(0)
+    for col in ["مشددة", "معززة", "روتينية"]:
+        if col not in daily_pivot.columns:
+            daily_pivot[col] = 0
+
+    fig_timeline = go.Figure()
+    fig_timeline.add_trace(go.Bar(name="مناظرة مشددة (أحمر)", x=daily_pivot.index, y=daily_pivot["مشددة"], marker_color="#ff3366"))
+    fig_timeline.add_trace(go.Bar(name="مناظرة معززة (برتقالي)", x=daily_pivot.index, y=daily_pivot["معززة"], marker_color="#ff9900"))
+    fig_timeline.add_trace(go.Bar(name="مناظرة روتينية (سماوي)", x=daily_pivot.index, y=daily_pivot["روتينية"], marker_color="#00e5ff"))
+
+    fig_timeline.update_layout(
+        barmode="stack",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(10, 20, 48, 0.6)",
+        margin=dict(l=0, r=0, t=10, b=0),
+        height=260,
+        font=dict(family="Tajawal", color="#94a3b8"),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        xaxis=dict(gridcolor="rgba(0, 229, 255, 0.1)"),
+        yaxis=dict(gridcolor="rgba(0, 229, 255, 0.1)")
+    )
+    st.plotly_chart(fig_timeline, use_container_width=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.subheader(f"📋 سجل الرحلات ومستويات المناظرة بصالة المطار ({scope_title})")
+    cols_disp = ["flight", "date", "dest", "origin_city", "country", "pax", "duration_h", "risk_score", "action"]
+    v_df = df_view[cols_disp].sort_values(by="risk_score", ascending=False).reset_index(drop=True)
+    v_df.columns = ["رقم الرحلة", "التاريخ", "المنفذ", "محطة الإقلاع", "الدولة", "الركاب", "ساعات الطيران", "مؤشر الخطر", "إجراء المناظرة بصالة القدوم"]
+    st.dataframe(v_df, use_container_width=True)
+
+# =========================================================================
+# الشاشة الثانية: مقصورة الطائرة التفاعلية الكاملة (Fuselage & Seats)
+# =========================================================================
 else:
-    st.title("🚨 بروتوكول البلاغات وحصر مخالطي الطائرة")
-    st.caption("تُفعل هذه الشاشة حصراً عند ورود بلاغ من كابتن الطائرة أو رصد حالة مشتبهة أثناء المناظرة.")
+    st.title("✈️ محاكاة مقصورة الطائرة وحصر المخالطين الميداني")
+    st.caption("محاكاة دقيقة لهيكل الطائرة ومقاعد الركاب لتحديد دائرة المخالطين عند ورود بلاغ أو رصد حالة مشتبهة.")
 
-    col_setup, col_meta = st.columns([4, 6])
-    
-    with col_setup:
-        st.subheader("📝 تفاصيل الحالة المشتبهة")
-        flight_id = st.text_input("رقم الرحلة:", value="SV-214")
-        seat_row = st.number_input("رقم صف المقعد للحالة (1 - 30):", min_value=1, max_value=30, value=12)
-        seat_letter = st.selectbox("رمز المقعد:", ["A", "B", "C", "D", "E", "F"], index=1)
-        reported_seat = f"{seat_row}{seat_letter}"
-        
+    c_in1, c_in2 = st.columns([4, 6])
+    with c_in1:
+        st.subheader("📝 تفاصيل الحالة والمقعد")
+        f_num = st.text_input("رقم الرحلة الجوية:", value="SV-314")
+        chosen_row = st.number_input("رقم صف المقعد (1 إلى 30):", min_value=1, max_value=30, value=14)
+        chosen_col = st.selectbox("رمز المقعد:", ["A", "B", "C", "D", "E", "F"], index=1)
+        infected_seat = f"{chosen_row}{chosen_col}"
         st.info(f"**المرض المشتبه:** {selected_pathogen_name}\n\n**قاعدة الحصر:** `{p_info['tracing_rule']}`")
 
-    # حساب المقاعد المحصورة وفق القواعد السريرية
-    # الطائرة: 30 صفاً، كل صف 6 مقاعد (A, B, C | D, E, F)
-    letters = ["A", "B", "C", "D", "E", "F"]
+    # تحديد المخالطين المحصورين بناءً على القاعدة السريرية
     total_rows = 30
-    
-    quarantine_seats = []
-    
-    if p_info["tracing_rule"] == "full_cabin":
-        # الدرن الهوائي: حصر المقصورة كاملة
-        for r in range(1, total_rows + 1):
-            for l in letters:
-                if f"{r}{l}" != reported_seat:
-                    quarantine_seats.append(f"{r}{l}")
-        rule_desc = "حصر المقصورة بالكامل (Airborne Spread)"
-        
-    elif p_info["tracing_rule"] == "two_rows":
-        # رذاذي (كورونا/إنفلونزا): صفين للأمام وصفين للخلف + نفس الصف
-        min_r = max(1, seat_row - 2)
-        max_r = min(total_rows, seat_row + 2)
-        for r in range(min_r, max_r + 1):
-            for l in letters:
-                if f"{r}{l}" != reported_seat:
-                    quarantine_seats.append(f"{r}{l}")
-        rule_desc = "حصر صفين للأمام وصفين للخلف ومقاعد نفس الصف (2 Rows Radius)"
-        
-    elif p_info["tracing_rule"] == "adjacent_only":
-        # جدري الماء: المقاعد المجاورة في نفس الصف
-        cur_idx = letters.index(seat_letter)
-        adj_letters = []
-        if cur_idx > 0: adj_letters.append(letters[cur_idx - 1])
-        if cur_idx < 5: adj_letters.append(letters[cur_idx + 1])
-        for l in adj_letters:
-            quarantine_seats.append(f"{seat_row}{l}")
-        rule_desc = "حصر المقاعد الملاصقة يميناً ويساراً في نفس الصف"
-        
-    else: # direct_contacts_only (إيبولا)
-        # إيبولا: الملاصقين فوراً + طاقم الخدمة ومستخدمي الحمام
-        cur_idx = letters.index(seat_letter)
-        if cur_idx > 0: quarantine_seats.append(f"{seat_row}{letters[cur_idx - 1]}")
-        if cur_idx < 5: quarantine_seats.append(f"{seat_row}{letters[cur_idx + 1]}")
-        rule_desc = "الملاصقين المباشرين فقط + طاقم الخدمة وحظر تفريغ الصرف الصحي"
+    cols_order = ["A", "B", "C", "D", "E", "F"]
+    traced_seats = []
 
-    with col_meta:
-        st.subheader("🎯 مخرجات حصر المخالطين والتدخل الميداني")
+    if p_info["tracing_rule"] == "full_cabin":
+        for r in range(1, total_rows + 1):
+            for c in cols_order:
+                if f"{r}{c}" != infected_seat:
+                    traced_seats.append(f"{r}{c}")
+        rule_text = "حصر مقصورة الركاب بالكامل (Airborne Nuclei Transmission)"
+
+    elif p_info["tracing_rule"] == "two_rows":
+        start_r = max(1, chosen_row - 2)
+        end_r = min(total_rows, chosen_row + 2)
+        for r in range(start_r, end_r + 1):
+            for c in cols_order:
+                if f"{r}{c}" != infected_seat:
+                    traced_seats.append(f"{r}{c}")
+        rule_text = "حصر دائرة مقاعد (صفين للأمام + صفين للخلف ومقاعد نفس الصف)"
+
+    elif p_info["tracing_rule"] == "adjacent_only":
+        c_idx = cols_order.index(chosen_col)
+        adjs = []
+        if c_idx > 0: adjs.append(cols_order[c_idx - 1])
+        if c_idx < 5: adjs.append(cols_order[c_idx + 1])
+        for c in adjs:
+            traced_seats.append(f"{chosen_row}{c}")
+        rule_text = "حصر المقاعد الملاصقة مباشرة في نفس الصف (تلامسي)"
+
+    else: # direct_contacts_only (إيبولا)
+        c_idx = cols_order.index(chosen_col)
+        if c_idx > 0: traced_seats.append(f"{chosen_row}{cols_order[c_idx - 1]}")
+        if c_idx < 5: traced_seats.append(f"{chosen_row}{cols_order[c_idx + 1]}")
+        rule_text = "الملاصقين المباشرين فوراً + طاقم الخدمة المعين"
+
+    with c_in2:
+        st.subheader("🎯 الإجراء الوقائي المعتمد")
         m1, m2, m3 = st.columns(3)
-        m1.metric("المقعد المصاب", reported_seat)
-        m2.metric("عدد المخالطين المطلوب حصرهم", f"{len(quarantine_seats)} راكب")
-        m3.metric("مستوى الاستجابة", "عزل فوري ونقل طبي" if "Ebola" in selected_pathogen_name else "فرز ومتابعة وبائية")
-        
-        st.warning(f"**البروتوكول الميداني المعتمد:** {rule_desc}")
-        st.markdown("""
-        * **إجراء الطاقم الطبي:** الصعود بملابس الوقاية (PPE) المحددة لنمط المرض.
-        * **إجراء الصالة:** عزل الحالة المشتبهة إلى غرفة العزل المؤقتة بالمنفذ.
-        * **المخالطون:** سحب بيانات الاتصال وتوقيع الإقرار الصحي وحجز السجلات للتتبع الوبائي لمدة 14-21 يوماً.
-        """)
+        m1.metric("المقعد المصاب", infected_seat)
+        m2.metric("عدد الركاب المخالطين", f"{len(traced_seats)} راكب")
+        m3.metric("مستوى الاستجابة", "عزل ونقل فوري" if "Ebola" in selected_pathogen_name else "فرز وتتبع وبائي")
+        st.warning(f"**القاعدة المعيارية:** {rule_text}")
+
+        # تصدير كشف المخالطين إلى Excel
+        export_df = pd.DataFrame({
+            "رقم الرحلة": [f_num] * (len(traced_seats) + 1),
+            "المقعد": [infected_seat] + traced_seats,
+            "التصنيف": ["حالة مشتبهة (عزل فوري)"] + ["مخالط محصور (متابعة وبائية)"] * len(traced_seats),
+            "المرض": [selected_pathogen_name] * (len(traced_seats) + 1)
+        })
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+            export_df.to_excel(writer, index=False, sheet_name="Contact_Tracing")
+        st.download_button(
+            label="📥 تصدير كشف المخالطين إلى Excel",
+            data=buffer.getvalue(),
+            file_name=f"Contact_Tracing_{f_num}_{infected_seat}.xlsx",
+            mime="application/vnd.ms-excel"
+        )
 
     st.markdown("---")
-    st.subheader("✈️ المحاكاة التفاعلية لمقصورة الطائرة وتوزيع المقاعد المحصورة")
-    st.caption("المقعد الأحمر الوامض يمثل الحالة المشتبهة، والمقاعد البرتقالية تمثل دائرة المخالطين الملزم حصرهم، والمقاعد السماوية آمنة.")
+    st.subheader(f"💺 مخطط مقصورة الطائرة التفاعلي (الرحلة: {f_num})")
+    st.caption("هيكل طائرة كامل يحاكي أنظمة حجز الطيران: الأحمر للحالة، البرتقالي للمخالطين، والسماوي الداكن للمقاعد الآمنة.")
 
-    # بناء شبكة المقاعد بـ Plotly
-    rows_list, cols_list, seat_labels, seat_status, colors = [], [], [], [], []
-    col_mapping = {"A": 1, "B": 2, "C": 3, "D": 4.5, "E": 5.5, "F": 6.5} # ممر في المنتصف
+    # رسم هيكل الطائرة (Fuselage + Wings + Cockpit)
+    fig_plane = go.Figure()
 
-    for r in range(1, total_rows + 1):
-        for l in letters:
-            s_name = f"{r}{l}"
-            rows_list.append(r)
-            cols_list.append(col_mapping[l])
-            seat_labels.append(s_name)
-            
-            if s_name == reported_seat:
-                seat_status.append("الحالة المشتبهة (عزل مباشر)")
-                colors.append("#ff3366") # أحمر فاقع
-            elif s_name in quarantine_seats:
-                seat_status.append("مخالط محصور (تتبع وعزل/فحص)")
-                colors.append("#ff9900") # برتقالي متوهج
-            else:
-                seat_status.append("مسافر غير مشتبه")
-                colors.append("#0c2340") # كحلي داكن
-
-    fig_seats = go.Figure()
-
-    fig_seats.add_trace(go.Scatter(
-        x=cols_list,
-        y=rows_list,
-        mode="markers+text",
-        text=seat_labels,
-        textposition="middle center",
-        textfont=dict(size=9, color="#ffffff", family="Tajawal"),
-        marker=dict(
-            size=22,
-            color=colors,
-            symbol="square",
-            line=dict(width=1.5, color="rgba(0, 229, 255, 0.4)")
-        ),
-        hoverinfo="text",
-        hovertext=[f"المقعد: {seat_labels[i]}<br>الحالة: {seat_status[i]}" for i in range(len(seat_labels))]
+    # 1. جسم الطائرة ومقدمة الأنف (Fuselage Body)
+    fuselage_x = [0.2, 0.2, 1.2, 3.7, 6.2, 7.2, 7.2, 0.2]
+    fuselage_y = [32, 2, -1.8, -3.2, -1.8, 2, 32, 32]
+    fig_plane.add_trace(go.Scatter(
+        x=fuselage_x, y=fuselage_y,
+        fill="toself",
+        fillcolor="rgba(10, 25, 55, 0.5)",
+        line=dict(color="#00e5ff", width=2.5),
+        hoverinfo="none",
+        showlegend=False
     ))
 
-    fig_seats.update_layout(
+    # 2. أجنحة الطائرة الجانبية (Wings)
+    # الجناح الأيسر
+    fig_plane.add_trace(go.Scatter(
+        x=[0.2, -3.2, -3.0, 0.2],
+        y=[10, 16, 21, 19],
+        fill="toself",
+        fillcolor="rgba(0, 229, 255, 0.08)",
+        line=dict(color="rgba(0, 229, 255, 0.4)", width=1.8),
+        hoverinfo="none",
+        showlegend=False
+    ))
+    # الجناح الأيمن
+    fig_plane.add_trace(go.Scatter(
+        x=[7.2, 10.6, 10.4, 7.2],
+        y=[10, 16, 21, 19],
+        fill="toself",
+        fillcolor="rgba(0, 229, 255, 0.08)",
+        line=dict(color="rgba(0, 229, 255, 0.4)", width=1.8),
+        hoverinfo="none",
+        showlegend=False
+    ))
+
+    # 3. قمرة القيادة ومخارج الطوارئ (Cockpit & Exits)
+    fig_plane.add_trace(go.Scatter(
+        x=[3.7], y=[-2.2],
+        mode="text",
+        text=["✈️ COCKPIT"],
+        textfont=dict(color="#00e5ff", size=11, family="Tajawal"),
+        hoverinfo="none",
+        showlegend=False
+    ))
+    # أبواب الطوارئ
+    fig_plane.add_trace(go.Scatter(
+        x=[0.2, 7.2, 0.2, 7.2],
+        y=[1.5, 1.5, 15, 15],
+        mode="text",
+        text=["🚪 EXIT", "EXIT 🚪", "🚪 EXIT", "EXIT 🚪"],
+        textfont=dict(color="#ff9900", size=9, family="Tajawal"),
+        hoverinfo="none",
+        showlegend=False
+    ))
+
+    # 4. توزيع المقاعد ككبسولات داخل المقصورة
+    x_coords = {"A": 1.1, "B": 2.0, "C": 2.9, "D": 4.5, "E": 5.4, "F": 6.3}
+    seat_xs, seat_ys, seat_texts, seat_colors, seat_hovers = [], [], [], [], []
+
+    for r in range(1, total_rows + 1):
+        for c in cols_order:
+            s_code = f"{r}{c}"
+            seat_xs.append(x_coords[c])
+            seat_ys.append(r)
+            seat_texts.append(s_code)
+
+            if s_code == infected_seat:
+                seat_colors.append("#ff3366") # أحمر وامض
+                seat_hovers.append(f"المقعد: {s_code} | الحالة المشتبهة (عزل فوري)")
+            elif s_code in traced_seats:
+                seat_colors.append("#ff9900") # برتقالي متوهج
+                seat_hovers.append(f"المقعد: {s_code} | مخالط محصور (حجر ومتابعة)")
+            else:
+                seat_colors.append("#0c203b") # أزرق كحلي داكن
+                seat_hovers.append(f"المقعد: {s_code} | سليم / غير مشتبه")
+
+    fig_plane.add_trace(go.Scatter(
+        x=seat_xs,
+        y=seat_ys,
+        mode="markers+text",
+        text=seat_texts,
+        textposition="middle center",
+        textfont=dict(size=8.5, color="#ffffff", family="Tajawal"),
+        marker=dict(
+            size=22,
+            color=seat_colors,
+            symbol="square",
+            line=dict(width=1.5, color="rgba(0, 229, 255, 0.45)")
+        ),
+        hoverinfo="text",
+        hovertext=seat_hovers,
+        name="المقاعد"
+    ))
+
+    # ضبط إحداثيات وتصميم لوحة الطائرة
+    fig_plane.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(8, 18, 42, 0.7)",
-        height=750,
-        margin=dict(l=20, r=20, t=30, b=20),
+        plot_bgcolor="rgba(6, 12, 28, 0.7)",
+        height=850,
+        margin=dict(l=10, r=10, t=10, b=10),
         xaxis=dict(
             tickmode="array",
-            tickvals=[1, 2, 3, 4.5, 5.5, 6.5],
-            ticktext=["A", "B", "C", "D (ممر)", "E", "F"],
+            tickvals=[1.1, 2.0, 2.9, 3.7, 4.5, 5.4, 6.3],
+            ticktext=["A", "B", "C", "الممر", "D", "E", "F"],
             showgrid=False,
             zeroline=False,
             color="#00e5ff"
         ),
         yaxis=dict(
-            title="صفوف الطائرة (1 - 30)",
+            autorange="reversed",
+            showgrid=False,
+            zeroline=False,
+            range=[-4, 33],
             tickmode="linear",
             tick0=1,
             dtick=1,
-            autorange="reversed",
-            showgrid=True,
-            gridcolor="rgba(0, 229, 255, 0.08)",
             color="#94a3b8"
         )
     )
 
-    st.plotly_chart(fig_seats, use_container_width=True)
+    st.plotly_chart(fig_plane, use_container_width=True)
