@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
-import io
 
 # إعدادات واجهة النظام
 st.set_page_config(
@@ -156,7 +155,6 @@ if view_mode == "1️⃣ شاشة التنبؤ والمناظرة (شهر سبت
 
     df_filtered = df_all[df_all["dest"].isin(selected_airports)].copy()
 
-    # الحساب العلمي المبني على SPAR وفترة الحضانة
     def calculate_risk(row):
         ctry = row["country"]
         inc = p_info["incidence"].get(ctry, 5.0)
@@ -182,7 +180,6 @@ if view_mode == "1️⃣ شاشة التنبؤ والمناظرة (شهر سبت
     df_filtered["color"] = [t[1] for t in tiers]
     df_filtered["level"] = [t[2] for t in tiers]
 
-    # فلترة التاريخ (كامل الشهر مقابل يوم محدد)
     st.sidebar.markdown("---")
     st.sidebar.subheader("📅 نافذة التتبع الزمني")
     date_options = sorted(list(df_filtered["date"].unique()))
@@ -196,7 +193,6 @@ if view_mode == "1️⃣ شاشة التنبؤ والمناظرة (شهر سبت
         df_view = df_filtered.copy()
         scope_title = "لكامل شهر سبتمبر (140+ رحلة)"
 
-    # المؤشرات الرئيسية
     k1, k2, k3, k4 = st.columns(4)
     total_f = len(df_view)
     total_p = int(df_view["pax"].sum())
@@ -209,8 +205,6 @@ if view_mode == "1️⃣ شاشة التنبؤ والمناظرة (شهر سبت
     k4.metric("متوسط الخطر الوبائي العام", f"{avg_r:.1f} / 100")
 
     st.markdown("<br>", unsafe_allow_html=True)
-
-    # المخطط الزمني لتوزيع المخاطر طوال شهر سبتمبر
     st.subheader("📈 التوزيع الزمني لمستويات الفرز طوال شهر سبتمبر")
     st.caption("يكشف هذا المخطط أيام الذروة الوبائية في المطار وأعداد الرحلات التي تتطلب مناظرة مشددة يوماً بيوم.")
 
@@ -261,191 +255,6 @@ else:
         infected_seat = f"{chosen_row}{chosen_col}"
         st.info(f"**المرض المشتبه:** {selected_pathogen_name}\n\n**قاعدة الحصر:** `{p_info['tracing_rule']}`")
 
-    # تحديد المخالطين المحصورين بناءً على القاعدة السريرية
     total_rows = 30
     cols_order = ["A", "B", "C", "D", "E", "F"]
-    traced_seats = []
-
-    if p_info["tracing_rule"] == "full_cabin":
-        for r in range(1, total_rows + 1):
-            for c in cols_order:
-                if f"{r}{c}" != infected_seat:
-                    traced_seats.append(f"{r}{c}")
-        rule_text = "حصر مقصورة الركاب بالكامل (Airborne Nuclei Transmission)"
-
-    elif p_info["tracing_rule"] == "two_rows":
-        start_r = max(1, chosen_row - 2)
-        end_r = min(total_rows, chosen_row + 2)
-        for r in range(start_r, end_r + 1):
-            for c in cols_order:
-                if f"{r}{c}" != infected_seat:
-                    traced_seats.append(f"{r}{c}")
-        rule_text = "حصر دائرة مقاعد (صفين للأمام + صفين للخلف ومقاعد نفس الصف)"
-
-    elif p_info["tracing_rule"] == "adjacent_only":
-        c_idx = cols_order.index(chosen_col)
-        adjs = []
-        if c_idx > 0: adjs.append(cols_order[c_idx - 1])
-        if c_idx < 5: adjs.append(cols_order[c_idx + 1])
-        for c in adjs:
-            traced_seats.append(f"{chosen_row}{c}")
-        rule_text = "حصر المقاعد الملاصقة مباشرة في نفس الصف (تلامسي)"
-
-    else: # direct_contacts_only (إيبولا)
-        c_idx = cols_order.index(chosen_col)
-        if c_idx > 0: traced_seats.append(f"{chosen_row}{cols_order[c_idx - 1]}")
-        if c_idx < 5: traced_seats.append(f"{chosen_row}{cols_order[c_idx + 1]}")
-        rule_text = "الملاصقين المباشرين فوراً + طاقم الخدمة المعين"
-
-    with c_in2:
-        st.subheader("🎯 الإجراء الوقائي المعتمد")
-        m1, m2, m3 = st.columns(3)
-        m1.metric("المقعد المصاب", infected_seat)
-        m2.metric("عدد الركاب المخالطين", f"{len(traced_seats)} راكب")
-        m3.metric("مستوى الاستجابة", "عزل ونقل فوري" if "Ebola" in selected_pathogen_name else "فرز وتتبع وبائي")
-        st.warning(f"**القاعدة المعيارية:** {rule_text}")
-
-        # تصدير كشف المخالطين إلى Excel
-        export_df = pd.DataFrame({
-            "رقم الرحلة": [f_num] * (len(traced_seats) + 1),
-            "المقعد": [infected_seat] + traced_seats,
-            "التصنيف": ["حالة مشتبهة (عزل فوري)"] + ["مخالط محصور (متابعة وبائية)"] * len(traced_seats),
-            "المرض": [selected_pathogen_name] * (len(traced_seats) + 1)
-        })
-        buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
-            export_df.to_excel(writer, index=False, sheet_name="Contact_Tracing")
-        st.download_button(
-            label="📥 تصدير كشف المخالطين إلى Excel",
-            data=buffer.getvalue(),
-            file_name=f"Contact_Tracing_{f_num}_{infected_seat}.xlsx",
-            mime="application/vnd.ms-excel"
-        )
-
-    st.markdown("---")
-    st.subheader(f"💺 مخطط مقصورة الطائرة التفاعلي (الرحلة: {f_num})")
-    st.caption("هيكل طائرة كامل يحاكي أنظمة حجز الطيران: الأحمر للحالة، البرتقالي للمخالطين، والسماوي الداكن للمقاعد الآمنة.")
-
-    # رسم هيكل الطائرة (Fuselage + Wings + Cockpit)
-    fig_plane = go.Figure()
-
-    # 1. جسم الطائرة ومقدمة الأنف (Fuselage Body)
-    fuselage_x = [0.2, 0.2, 1.2, 3.7, 6.2, 7.2, 7.2, 0.2]
-    fuselage_y = [32, 2, -1.8, -3.2, -1.8, 2, 32, 32]
-    fig_plane.add_trace(go.Scatter(
-        x=fuselage_x, y=fuselage_y,
-        fill="toself",
-        fillcolor="rgba(10, 25, 55, 0.5)",
-        line=dict(color="#00e5ff", width=2.5),
-        hoverinfo="none",
-        showlegend=False
-    ))
-
-    # 2. أجنحة الطائرة الجانبية (Wings)
-    # الجناح الأيسر
-    fig_plane.add_trace(go.Scatter(
-        x=[0.2, -3.2, -3.0, 0.2],
-        y=[10, 16, 21, 19],
-        fill="toself",
-        fillcolor="rgba(0, 229, 255, 0.08)",
-        line=dict(color="rgba(0, 229, 255, 0.4)", width=1.8),
-        hoverinfo="none",
-        showlegend=False
-    ))
-    # الجناح الأيمن
-    fig_plane.add_trace(go.Scatter(
-        x=[7.2, 10.6, 10.4, 7.2],
-        y=[10, 16, 21, 19],
-        fill="toself",
-        fillcolor="rgba(0, 229, 255, 0.08)",
-        line=dict(color="rgba(0, 229, 255, 0.4)", width=1.8),
-        hoverinfo="none",
-        showlegend=False
-    ))
-
-    # 3. قمرة القيادة ومخارج الطوارئ (Cockpit & Exits)
-    fig_plane.add_trace(go.Scatter(
-        x=[3.7], y=[-2.2],
-        mode="text",
-        text=["✈️ COCKPIT"],
-        textfont=dict(color="#00e5ff", size=11, family="Tajawal"),
-        hoverinfo="none",
-        showlegend=False
-    ))
-    # أبواب الطوارئ
-    fig_plane.add_trace(go.Scatter(
-        x=[0.2, 7.2, 0.2, 7.2],
-        y=[1.5, 1.5, 15, 15],
-        mode="text",
-        text=["🚪 EXIT", "EXIT 🚪", "🚪 EXIT", "EXIT 🚪"],
-        textfont=dict(color="#ff9900", size=9, family="Tajawal"),
-        hoverinfo="none",
-        showlegend=False
-    ))
-
-    # 4. توزيع المقاعد ككبسولات داخل المقصورة
-    x_coords = {"A": 1.1, "B": 2.0, "C": 2.9, "D": 4.5, "E": 5.4, "F": 6.3}
-    seat_xs, seat_ys, seat_texts, seat_colors, seat_hovers = [], [], [], [], []
-
-    for r in range(1, total_rows + 1):
-        for c in cols_order:
-            s_code = f"{r}{c}"
-            seat_xs.append(x_coords[c])
-            seat_ys.append(r)
-            seat_texts.append(s_code)
-
-            if s_code == infected_seat:
-                seat_colors.append("#ff3366") # أحمر وامض
-                seat_hovers.append(f"المقعد: {s_code} | الحالة المشتبهة (عزل فوري)")
-            elif s_code in traced_seats:
-                seat_colors.append("#ff9900") # برتقالي متوهج
-                seat_hovers.append(f"المقعد: {s_code} | مخالط محصور (حجر ومتابعة)")
-            else:
-                seat_colors.append("#0c203b") # أزرق كحلي داكن
-                seat_hovers.append(f"المقعد: {s_code} | سليم / غير مشتبه")
-
-    fig_plane.add_trace(go.Scatter(
-        x=seat_xs,
-        y=seat_ys,
-        mode="markers+text",
-        text=seat_texts,
-        textposition="middle center",
-        textfont=dict(size=8.5, color="#ffffff", family="Tajawal"),
-        marker=dict(
-            size=22,
-            color=seat_colors,
-            symbol="square",
-            line=dict(width=1.5, color="rgba(0, 229, 255, 0.45)")
-        ),
-        hoverinfo="text",
-        hovertext=seat_hovers,
-        name="المقاعد"
-    ))
-
-    # ضبط إحداثيات وتصميم لوحة الطائرة
-    fig_plane.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(6, 12, 28, 0.7)",
-        height=850,
-        margin=dict(l=10, r=10, t=10, b=10),
-        xaxis=dict(
-            tickmode="array",
-            tickvals=[1.1, 2.0, 2.9, 3.7, 4.5, 5.4, 6.3],
-            ticktext=["A", "B", "C", "الممر", "D", "E", "F"],
-            showgrid=False,
-            zeroline=False,
-            color="#00e5ff"
-        ),
-        yaxis=dict(
-            autorange="reversed",
-            showgrid=False,
-            zeroline=False,
-            range=[-4, 33],
-            tickmode="linear",
-            tick0=1,
-            dtick=1,
-            color="#94a3b8"
-        )
-    )
-
-    st.plotly_chart(fig_plane, use_container_width=True)
+    traced
