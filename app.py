@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# تخصيص الهوية البصرية السيادية (Deep Navy & Cyan Glow) مع خط Tajawal
+# تخصيص الهوية البصرية السيادية مع خط Tajawal
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
@@ -70,4 +70,22 @@ national_airports = {
 # مصفوفة الأوبئة الأربعة المعتمدة
 pathogen_db = {
     "Ebola / Marburg (حمى نزفية فيروسية - عالية الخطورة)": {
-        "r0": 1.9, "incubation_days": 8.0, "type": "contact_fluids",
+        "r0": 1.9,
+        "incubation_days": 8.0,
+        "type": "contact_fluids",
+        "severity": "حرجة جداً (فتك حاد)",
+        "tracing_rule": "direct_contacts_only",
+        "incidence": {
+            "Nigeria": 48.0, "Pakistan": 0.0, "India": 0.0, "Egypt": 0.0,
+            "Bangladesh": 0.0, "Indonesia": 0.0, "Turkey": 0.0, "Jordan": 0.0, "UK": 0.0
+        }
+    },
+    "Airborne TB (الدرن الرئوي المفتوح - منقول بالهواء)": {
+        "r0": 3.2,
+        "incubation_days": 30.0,
+        "type": "airborne",
+        "severity": "عالية ومزمنة",
+        "tracing_rule": "full_cabin",
+        "incidence": {
+            "Pakistan": 85.0, "India": 90.0, "Bangladesh": 78.0, "Nigeria": 60.0,
+            "Indonesia": 70.0, "Egypt": 15.0, "Turkey": 8
