@@ -12,7 +12,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# فرض اللغة العربية ومحاذاة اليمين لليسار (RTL) والهوية السيادية
+# محاذاة من اليمين لليسار (RTL) مع خط Tajawal
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
@@ -22,19 +22,16 @@ st.markdown("""
         direction: rtl !important;
         text-align: right !important;
     }
-    
     .stApp {
         background: radial-gradient(circle at 50% 10%, #0d1b3e 0%, #060a17 100%) !important;
         color: #e2e8f0;
     }
-    
     section[data-testid="stSidebar"] {
         background-color: rgba(10, 20, 48, 0.95) !important;
         border-left: 1px solid rgba(0, 229, 255, 0.15) !important;
         direction: rtl !important;
         text-align: right !important;
     }
-    
     div[data-testid="stMetric"] {
         background: linear-gradient(135deg, rgba(16, 35, 78, 0.6) 0%, rgba(8, 18, 42, 0.8) 100%) !important;
         border: 1px solid rgba(0, 229, 255, 0.25) !important;
@@ -44,14 +41,12 @@ st.markdown("""
         direction: rtl !important;
         text-align: right !important;
     }
-    
     div[data-testid="stMetricValue"] {
         color: #00e5ff !important;
         font-size: 1.85rem !important;
         font-weight: 900 !important;
         text-shadow: 0 0 12px rgba(0, 229, 255, 0.35);
     }
-    
     .reason-box {
         background: rgba(16, 35, 78, 0.5);
         border: 1px solid rgba(0, 229, 255, 0.3);
@@ -61,16 +56,14 @@ st.markdown("""
         direction: rtl !important;
         text-align: right !important;
     }
-    
     .iso-unit {
         border-radius: 10px;
-        padding: 14px;
+        padding: 16px;
         text-align: center;
         border: 1px solid rgba(0, 229, 255, 0.3);
         font-weight: bold;
         line-height: 1.6;
     }
-    
     h1, h2, h3, h4, h5, p, span, label {
         text-align: right !important;
     }
@@ -79,13 +72,13 @@ st.markdown("""
 
 # قاعدة بيانات SPAR المتخصصة ومحطات القدوم الدولية
 origins_spar_db = {
-    "cairo": {"country": "Egypt", "lat": 30.1219, "lon": 31.4056, "c4": 72, "c5": 70, "c10": 65, "duration_h": 2.2},
-    "dhaka": {"country": "Bangladesh", "lat": 23.8433, "lon": 90.3978, "c4": 55, "c5": 50, "c10": 48, "duration_h": 6.5},
-    "islamabad": {"country": "Pakistan", "lat": 33.5492, "lon": 72.8277, "c4": 60, "c5": 58, "c10": 55, "duration_h": 4.8},
-    "lahore": {"country": "Pakistan", "lat": 31.5216, "lon": 74.4036, "c4": 60, "c5": 58, "c10": 55, "duration_h": 4.5},
+    "cairo": {"country": "Egypt", "lat": 30.1219, "lon": 31.4056, "c4": 75, "c5": 72, "c10": 70, "duration_h": 2.2},
+    "dhaka": {"country": "Bangladesh", "lat": 23.8433, "lon": 90.3978, "c4": 52, "c5": 48, "c10": 45, "duration_h": 6.5},
+    "islamabad": {"country": "Pakistan", "lat": 33.5492, "lon": 72.8277, "c4": 58, "c5": 56, "c10": 52, "duration_h": 4.8},
+    "lahore": {"country": "Pakistan", "lat": 31.5216, "lon": 74.4036, "c4": 58, "c5": 56, "c10": 52, "duration_h": 4.5},
     "jakarta": {"country": "Indonesia", "lat": -6.1275, "lon": 106.6537, "c4": 74, "c5": 70, "c10": 68, "duration_h": 9.5},
-    "delhi": {"country": "India", "lat": 28.5562, "lon": 77.1000, "c4": 68, "c5": 65, "c10": 60, "duration_h": 5.0},
-    "kano": {"country": "Nigeria", "lat": 12.0476, "lon": 8.5246, "c4": 45, "c5": 40, "c10": 38, "duration_h": 6.0},
+    "delhi": {"country": "India", "lat": 28.5562, "lon": 77.1000, "c4": 65, "c5": 62, "c10": 58, "duration_h": 5.0},
+    "kano": {"country": "Nigeria", "lat": 12.0476, "lon": 8.5246, "c4": 42, "c5": 38, "c10": 35, "duration_h": 6.0},
     "istanbul": {"country": "Turkey", "lat": 41.2753, "lon": 28.7519, "c4": 85, "c5": 82, "c10": 80, "duration_h": 3.5},
     "amman": {"country": "Jordan", "lat": 31.7226, "lon": 35.9932, "c4": 78, "c5": 75, "c10": 72, "duration_h": 1.8},
     "london": {"country": "UK", "lat": 51.4700, "lon": -0.4543, "c4": 94, "c5": 92, "c10": 90, "duration_h": 6.5}
@@ -101,58 +94,62 @@ pathogen_metadata = {
     "Ebola / Marburg (حمى نزفية فيروسية - عالية الخطورة)": {
         "r0": 1.9, "incubation_days": 8.0, "type": "contact_fluids",
         "severity": "حرجة جداً (فتك حاد)", "tracing_rule": "direct_contacts_only",
-        "ppe_directive": "المستوى الرابع (Level 4): بدلة عزل بيولوجي كاملة (Coverall) + قفازات مزدوجة + كمامة PAPR/N95 محكمة + واقي وجه وأحذية مقاوم للسوائل.",
+        "ppe_directive": "المستوى الرابع (Level 4): بدلة عزل بيولوجي كاملة (Coverall) + قفازات مزدوجة + كمامة PAPR/N95 محكمة + واقي وجه وأحذية عازل للسوائل.",
         "ppe_item_name": "أطقم عزل بيولوجي متكامل (Level-4 Bio-Coverall)",
-        "stock_current": 18, "stock_critical_threshold": 15, "stock_expiry": "2027-04-30"
+        "stock_current": 18, "stock_critical_threshold": 12, "stock_expiry": "2027-04-30"
     },
     "Airborne TB (الدرن الرئوي المفتوح - منقول بالهواء)": {
         "r0": 3.2, "incubation_days": 30.0, "type": "airborne",
         "severity": "عالية ومزمنة", "tracing_rule": "full_cabin",
         "ppe_directive": "المستوى الثالث المحمول جواً: كمامة N95 مفحوصة (Fit-tested) + نظارات حماية بانورامية + مريول طبي معقم عازل للسوائل + قفازات فحص.",
         "ppe_item_name": "كمامات تنفسية متخصصة (Fit-tested N95 Mask)",
-        "stock_current": 120, "stock_critical_threshold": 40, "stock_expiry": "2028-01-15"
+        "stock_current": 140, "stock_critical_threshold": 40, "stock_expiry": "2028-01-15"
     },
     "Severe Influenza / Novel Corona (رذاذي حاد)": {
         "r0": 2.5, "incubation_days": 3.5, "type": "droplet",
         "severity": "متوسطة إلى عالية", "tracing_rule": "two_rows",
         "ppe_directive": "مستوى الرذاذ التنفسي: كمامة جراحية عالية الكفاءة أو N95 + واقي الوجه الكامل (Face Shield) + مريول حماية طبي + قفازات فحص.",
         "ppe_item_name": "حزم حماية تنفسية رذاذية (Droplet PPE Pack)",
-        "stock_current": 250, "stock_critical_threshold": 50, "stock_expiry": "2026-11-30" # قارب على الانتهاء
+        "stock_current": 250, "stock_critical_threshold": 60, "stock_expiry": "2026-11-30"
     },
     "Chickenpox (جدري الماء - تلامسي مختلط)": {
         "r0": 1.6, "incubation_days": 14.0, "type": "contact_skin",
         "severity": "خفيفة إلى معتدلة", "tracing_rule": "adjacent_only",
         "ppe_directive": "مستوى التلامس والرذاذ: مريول طبي واقٍ + قفازات عزل + كمامة جراحية لمنع انتقال الرذاذ أثناء الفحص المباشر للطفح.",
         "ppe_item_name": "أطقم فحص تلامسي قياسية (Contact Isolation Pack)",
-        "stock_current": 80, "stock_critical_threshold": 20, "stock_expiry": "2027-09-15"
+        "stock_current": 80, "stock_critical_threshold": 25, "stock_expiry": "2027-09-15"
     }
 }
 
+# معدلات الإصابة الواقعية لكل 100 ألف نسمة في بلدان المنشأ
 def get_pathogen_incidence(disease_name, country_name):
     if "Ebola" in disease_name:
-        return {"Nigeria": 48.0}.get(country_name, 0.0)
+        return {"Nigeria": 12.0}.get(country_name, 0.0)
     elif "TB" in disease_name:
-        rates = {"Pakistan": 85.0, "India": 90.0, "Bangladesh": 78.0, "Nigeria": 60.0, "Indonesia": 70.0, "Egypt": 15.0, "Turkey": 8.0, "Jordan": 6.0, "UK": 4.0}
-        return rates.get(country_name, 5.0)
+        rates = {"Pakistan": 35.0, "India": 40.0, "Bangladesh": 30.0, "Nigeria": 25.0, "Indonesia": 28.0, "Egypt": 4.0, "Turkey": 2.5, "Jordan": 1.5, "UK": 1.0}
+        return rates.get(country_name, 2.0)
     elif "Corona" in disease_name or "Influenza" in disease_name:
-        rates = {"Egypt": 30.0, "India": 40.0, "Pakistan": 35.0, "Bangladesh": 30.0, "Indonesia": 28.0, "Nigeria": 15.0, "Turkey": 20.0, "Jordan": 15.0, "UK": 22.0}
-        return rates.get(country_name, 10.0)
-    else:
-        rates = {"Pakistan": 25.0, "India": 20.0, "Egypt": 15.0, "Bangladesh": 18.0, "Nigeria": 22.0, "Indonesia": 16.0, "Turkey": 10.0, "Jordan": 8.0, "UK": 5.0}
-        return rates.get(country_name, 8.0)
+        rates = {"Egypt": 15.0, "India": 22.0, "Pakistan": 18.0, "Bangladesh": 16.0, "Indonesia": 14.0, "Nigeria": 8.0, "Turkey": 12.0, "Jordan": 8.0, "UK": 10.0}
+        return rates.get(country_name, 5.0)
+    else: # Chickenpox
+        rates = {"Pakistan": 12.0, "India": 10.0, "Egypt": 6.0, "Bangladesh": 8.0, "Nigeria": 9.0, "Indonesia": 7.0, "Turkey": 4.0, "Jordan": 3.0, "UK": 2.0}
+        return rates.get(country_name, 3.0)
 
-# شريط التحكم الرئيسي
+# القائمة الجانبية للتنقل
 st.sidebar.title("🛡️ منظومة «ثغر» للمنافذ")
 view_mode = st.sidebar.radio(
-    "الشاشة التشغيلية:",
-    ["1️⃣ شاشة التنبؤ، الخريطة، وجاهزية المنفذ", "2️⃣ بروتوكول البلاغات وتتبع مقصورة الطائرة"]
+    "الشاشات التشغيلية:",
+    [
+        "1️⃣ الاستخبار الوبائي وتدفقات الطيران",
+        "2️⃣ بروتوكول البلاغات وتتبع مقصورة الطائرة",
+        "3️⃣ جاهزية سلاسل الإمداد (PPE) وغرف العزل"
+    ]
 )
 st.sidebar.markdown("---")
 
 selected_pathogen_name = st.sidebar.selectbox("🦠 التهديد الوبائي المحدد:", list(pathogen_metadata.keys()))
 p_info = pathogen_metadata[selected_pathogen_name]
 
-# إضافة معامل البلاغات غير الرسمية
 st.sidebar.markdown("---")
 st.sidebar.subheader("📡 استخبارات الرصد المفتوح (EBS)")
 rumor_factor = st.sidebar.slider(
@@ -161,14 +158,79 @@ rumor_factor = st.sidebar.slider(
     help="يُرفع المعامل تلقائياً عند رصد شائعات أو إشارات وبائية عبر منصات EIOS أو ProMED بدولة المنشأ قبل الإعلان الحكومي الرسمي."
 )
 
-# =========================================================================
-# الشاشة الأولى: التنبؤ الوبائي، الخريطة، تقويم سبتمبر، وغرف العزل والإمداد
-# =========================================================================
-if view_mode == "1️⃣ شاشة التنبؤ، الخريطة، وجاهزية المنفذ":
-    st.title("🌐 منظومة التنبؤ الاستباقي ومراقبة تدفقات المنافذ")
-    st.caption(f"التهديد الوبائي: **{selected_pathogen_name}** | مؤشر الرصد المفتوح والشائعات: **{rumor_factor}x**")
+# دالة توليد جدول سبتمبر الواقعي
+@st.cache_data
+def generate_schedule():
+    np.random.seed(42)
+    origins_keys = list(origins_spar_db.keys())
+    data = []
+    flight_idx = 100
+    for day in range(1, 31):
+        date_str = f"2026-09-{day:02d}"
+        for dest in ["MED", "JED", "RUH"]:
+            daily_count = np.random.randint(2, 5) if dest in ["MED", "JED"] else np.random.randint(1, 3)
+            for _ in range(daily_count):
+                orig_k = origins_keys[np.random.randint(0, len(origins_keys))]
+                orig_data = origins_spar_db[orig_k]
+                data.append({
+                    "flight": f"SV-{flight_idx}",
+                    "date": date_str,
+                    "dest": dest,
+                    "origin_city": orig_k.capitalize(),
+                    "country": orig_data["country"],
+                    "pax": int(np.random.randint(260, 410)),
+                    "duration_h": orig_data["duration_h"],
+                    "c4": orig_data["c4"], "c5": orig_data["c5"], "c10": orig_data["c10"],
+                    "lat": orig_data["lat"], "lon": orig_data["lon"]
+                })
+                flight_idx += 2
+    return pd.DataFrame(data)
 
-    # اختيار المنافذ المستهدفة
+df_all = generate_schedule()
+
+# محرك الحساب الرياضي المبني على احتمالية بواسون الحقيقية (Poisson Risk Probability)
+def evaluate_poisson_risk(row):
+    inc_per_100k = get_pathogen_incidence(selected_pathogen_name, row["country"])
+    if inc_per_100k == 0:
+        return 5.0
+    
+    # فجوة الرصد الثلاثي
+    spar_core = (row["c4"] + row["c5"] + row["c10"]) / 3.0
+    surveillance_gap = (100.0 - spar_core) / 35.0
+    
+    # نسبة مدة الرحلة إلى فترة الحضانة
+    incubation_hrs = p_info["incubation_days"] * 24.0
+    flight_factor = 1.0 + (row["duration_h"] / incubation_hrs)
+    
+    # حساب المتوسط المتوقع للحالات الوافدة lambda
+    lambda_cases = (inc_per_100k / 100000.0) * surveillance_gap * rumor_factor * (row["pax"] * 0.4) * (p_info["r0"] / 2.0) * flight_factor
+    
+    # حساب احتمالية وجود حالة واحدة على الأقل بواسطة Poisson: P = 1 - e^(-lambda)
+    prob_case = (1.0 - np.exp(-lambda_cases * 18.0)) * 100.0
+    return float(np.clip(prob_case, 6.0, 96.0).round(1))
+
+df_all["risk_score"] = df_all.apply(evaluate_poisson_risk, axis=1)
+
+def assign_tier(score):
+    if score >= 65:
+        return "مشددة (أحمر)", "#ff3366", "حرج"
+    elif score >= 30:
+        return "معززة (برتقالي)", "#ff9900", "متوسط"
+    else:
+        return "روتينية (سماوي)", "#00e5ff", "منخفض"
+
+tiers = df_all["risk_score"].apply(assign_tier)
+df_all["action"] = [t[0] for t in tiers]
+df_all["color"] = [t[1] for t in tiers]
+df_all["level"] = [t[2] for t in tiers]
+
+# =========================================================================
+# الشاشة الأولى: الاستخبار الوبائي وتدفقات الطيران
+# =========================================================================
+if view_mode == "1️⃣ الاستخبار الوبائي وتدفقات الطيران":
+    st.title("🌐 منظومة الاستخبار الوبائي وتدفقات الطيران")
+    st.caption(f"التهديد الوبائي: **{selected_pathogen_name}** | مؤشر الشائعات والرصد غير الرسمي: **{rumor_factor}x**")
+
     selected_airports = st.sidebar.multiselect(
         "المنافذ الوطنية المراقبة:",
         options=list(national_airports.keys()),
@@ -179,70 +241,9 @@ if view_mode == "1️⃣ شاشة التنبؤ، الخريطة، وجاهزية
         st.warning("يرجى اختيار منفذ واحد على الأقل.")
         st.stop()
 
-    uploaded_file = st.sidebar.file_uploader("📂 تحميل جدول رحلات سبتمبر (Excel / CSV):", type=["xlsx", "xls", "csv"])
-
-    @st.cache_data
-    def generate_full_september_schedule():
-        np.random.seed(42)
-        origins_keys = list(origins_spar_db.keys())
-        data = []
-        flight_idx = 100
-        for day in range(1, 31):
-            date_str = f"2026-09-{day:02d}"
-            for dest in ["MED", "JED", "RUH"]:
-                daily_count = np.random.randint(2, 5) if dest in ["MED", "JED"] else np.random.randint(1, 3)
-                for _ in range(daily_count):
-                    orig_k = origins_keys[np.random.randint(0, len(origins_keys))]
-                    orig_data = origins_spar_db[orig_k]
-                    data.append({
-                        "flight": f"SV-{flight_idx}",
-                        "date": date_str,
-                        "dest": dest,
-                        "origin_city": orig_k.capitalize(),
-                        "country": orig_data["country"],
-                        "pax": int(np.random.randint(270, 420)),
-                        "duration_h": orig_data["duration_h"],
-                        "c4": orig_data["c4"], "c5": orig_data["c5"], "c10": orig_data["c10"],
-                        "lat": orig_data["lat"], "lon": orig_data["lon"]
-                    })
-                    flight_idx += 2
-        return pd.DataFrame(data)
-
-    if uploaded_file:
-        df_all = pd.read_csv(uploaded_file) if uploaded_file.name.endswith(".csv") else pd.read_excel(uploaded_file)
-    else:
-        df_all = generate_full_september_schedule()
-
     df_filtered = df_all[df_all["dest"].isin(selected_airports)].copy()
 
-    # محرك الحساب العلمي متضمناً معامل البلاغات غير الرسمية
-    def calculate_risk(row):
-        inc = get_pathogen_incidence(selected_pathogen_name, row["country"])
-        spar_core = (row["c4"] + row["c5"] + row["c10"]) / 3.0
-        gap_factor = (100.0 - spar_core) / 35.0
-        incubation_hrs = p_info["incubation_days"] * 24.0
-        flight_ratio = 1.0 + (row["duration_h"] / incubation_hrs)
-        score = (inc / 100000.0) * row["pax"] * p_info["r0"] * gap_factor * flight_ratio * rumor_factor * 3200
-        return np.clip(score, 6.0, 98.5).round(1)
-
-    df_filtered["risk_score"] = df_filtered.apply(calculate_risk, axis=1)
-
-    def assign_tier(score):
-        if score >= 65:
-            return "مشددة (أحمر)", "#ff3366", "حرج"
-        elif score >= 35:
-            return "معززة (برتقالي)", "#ff9900", "متوسط"
-        else:
-            return "روتينية (سماوي)", "#00e5ff", "منخفض"
-
-    tiers = df_filtered["risk_score"].apply(assign_tier)
-    df_filtered["action"] = [t[0] for t in tiers]
-    df_filtered["color"] = [t[1] for t in tiers]
-    df_filtered["level"] = [t[2] for t in tiers]
-
-    # فلترة التاريخ (كامل الشهر مقابل يوم محدد)
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("📅 نافذة التتبع الزمني")
+    # خيارات التاريخ
     date_options = sorted(list(df_filtered["date"].unique()))
     time_scope = st.sidebar.radio("نطاق العرض:", ["كامل شهر سبتمبر (30 يوماً)", "تحديد يوم مخصص"])
 
@@ -252,77 +253,26 @@ if view_mode == "1️⃣ شاشة التنبؤ، الخريطة، وجاهزية
         scope_title = f"ليوم {active_day}"
     else:
         df_view = df_filtered.copy()
-        active_day = date_options[0]
         scope_title = "لكامل شهر سبتمبر (140+ رحلة)"
 
-    # --- 1. قسم جاهزية غرف العزل وسلاسل الإمداد اللوجستية المتقدمة ---
-    st.subheader(f"🏥 جاهزية غرف العزل وسلاسل الإمداد الطبي الميداني")
-    
-    # حساب احتياج اليوم لرحلات المنفذ المختار
-    main_port = selected_airports[0]
-    port_data = national_airports[main_port]
-    today_port_flights = df_filtered[(df_filtered["date"] == active_day) & (df_filtered["dest"] == main_port)]
-    crit_count = len(today_port_flights[today_port_flights["level"] == "حرج"])
-    
-    # غرف العزل
-    total_iso = port_data["iso_total"]
-    reserved_iso = min(crit_count, total_iso)
-    available_iso = total_iso - reserved_iso
-    
-    # الإمداد الطبي
-    current_stock = p_info["stock_current"]
-    est_consumption = crit_count * 5 # استهلاك تقديري 5 أطقم لكل رحلة حرجة
-    projected_remaining = current_stock - est_consumption
-    expiry_date = p_info["stock_expiry"]
-    
-    s_col1, s_col2, s_col3, s_col4 = st.columns(4)
-    s_col1.metric("غرف العزل بمطار المنفذ", f"{available_iso} متاحة", delta=f"{reserved_iso} محجوزة لرحلات حرجة" if reserved_iso > 0 else "الكل شاغر")
-    s_col2.metric(f"المتوفر من {p_info['ppe_item_name']}", f"{current_stock} طقم", delta=f"المتوقع استهلاكه اليوم: {est_consumption} طقم", delta_color="inverse" if est_consumption > 0 else "normal")
-    s_col3.metric("الرصيد المتبقي المتوقع", f"{projected_remaining} طقم", delta="قارب على النفاذ (طلب دعم)" if projected_remaining <= p_info["stock_critical_threshold"] else "ضمن الحدود الآمنة", delta_color="inverse" if projected_remaining <= p_info["stock_critical_threshold"] else "normal")
-    s_col4.metric("تاريخ انتهاء صلاحية المخزون", expiry_date, delta="قارب على الانتهاء!" if "2026-11" in expiry_date else "صلاحية سارية", delta_color="inverse" if "2026-11" in expiry_date else "normal")
-
-    # بطاقات غرف العزل الرسومية
-    iso_cols = st.columns(total_iso)
-    for idx, col in enumerate(iso_cols):
-        r_num = idx + 1
-        with col:
-            if idx < reserved_iso:
-                st.markdown(f"""
-                <div class="iso-unit" style="background: rgba(255, 51, 102, 0.2); border-color: #ff3366; color: #ff3366;">
-                    🚪 وحدة عزل {r_num} ({port_data['name']})<br>
-                    <span>● محجوزة مسبقاً لرحلة حرجة قادمة</span>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div class="iso-unit" style="background: rgba(0, 229, 255, 0.12); border-color: #00e5ff; color: #00e5ff;">
-                    🚪 وحدة عزل {r_num} ({port_data['name']})<br>
-                    <span>● شاغرة وجاهزة بنظام ضغط سالب</span>
-                </div>
-                """, unsafe_allow_html=True)
-
-    if projected_remaining <= p_info["stock_critical_threshold"]:
-        st.error(f"🚨 **تنبيه إمداد حرج:** المخزون المتوقع للبند ({p_info['ppe_item_name']}) سيصل إلى ({projected_remaining}) وهو أقل من حد الأمان ({p_info['stock_critical_threshold']}). تم تفعيل طلب إمداد تعزيزي من الإسناد الطبي.")
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # --- 2. المؤشرات الاستخبارية للرحلات ---
+    # المؤشرات الرئيسية
     k1, k2, k3, k4 = st.columns(4)
     tot_f = len(df_view)
     tot_p = int(df_view["pax"].sum())
     crit_f = len(df_view[df_view["level"] == "حرج"])
-    avg_r = df_view["risk_score"].mean() if tot_f > 0 else 0
+    med_f = len(df_view[df_view["level"] == "متوسط"])
+    low_f = len(df_view[df_view["level"] == "منخفض"])
 
     k1.metric("إجمالي الرحلات المرصودة", f"{tot_f:,} رحلة")
     k2.metric("إجمالي المسافرين الوافدين", f"{tot_p:,} مسافر")
-    k3.metric("الرحلات الحرجة (مناظرة مشددة)", f"{crit_f}", delta=f"{crit_f} رحلة تستدعي الفرز الفردي" if crit_f > 0 else "المستوى مستقر", delta_color="inverse")
-    k4.metric("متوسط الخطر الوبائي العام", f"{avg_r:.1f} / 100")
+    k3.metric("الرحلات الحرجة (مستوى أحمر)", f"{crit_f} رحلة", delta="بؤر عالية الخطورة" if crit_f > 0 else "المنافذ آمنة", delta_color="inverse")
+    k4.metric("توزيع الفرز (برتقالي / سماوي)", f"{med_f} متوسط / {low_f} منخفض")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- 3. المخطط الزمني لتوزيع المخاطر طوال شهر سبتمبر ---
+    # 1. المخطط الزمني لتوزيع المخاطر طوال شهر سبتمبر
     st.subheader("📈 التوزيع الزمني للرحلات ومستويات الفرز طوال شهر سبتمبر")
-    st.caption("يكشف هذا المخطط أيام الذروة الوبائية في المطار وأعداد الرحلات التي تتطلب مناظرة مشددة يوماً بيوم.")
+    st.caption("يكشف هذا المخطط أيام الذروة الوبائية في المطار وتدرج الرحلات بين المستويات (الأحمر، البرتقالي، والسماوي).")
 
     daily_summary = df_filtered.groupby(["date", "level"]).size().reset_index(name="count")
     daily_pivot = daily_summary.pivot(index="date", columns="level", values="count").fillna(0)
@@ -340,7 +290,7 @@ if view_mode == "1️⃣ شاشة التنبؤ، الخريطة، وجاهزية
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(10, 20, 48, 0.6)",
         margin=dict(l=0, r=0, t=10, b=0),
-        height=250,
+        height=260,
         font=dict(family="Tajawal", color="#94a3b8"),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
         xaxis=dict(gridcolor="rgba(0, 229, 255, 0.1)"),
@@ -350,12 +300,11 @@ if view_mode == "1️⃣ شاشة التنبؤ، الخريطة، وجاهزية
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- 4. خريطة المسارات الجوية والتدفق الوبائي السيادية ---
+    # 2. خريطة المسارات الجوية والتدفق الوبائي
     st.subheader(f"🌐 خريطة التدفق الجوي والمسارات الوبائية ثلاثية الأبعاد ({scope_title})")
 
     fig_map = go.Figure()
 
-    # خطوط الرحلات
     for _, r in df_view.iterrows():
         dest_coord = national_airports[r["dest"]]
         fig_map.add_trace(go.Scattergeo(
@@ -368,7 +317,6 @@ if view_mode == "1️⃣ شاشة التنبؤ، الخريطة، وجاهزية
             showlegend=False
         ))
 
-    # نقاط الانطلاق
     fig_map.add_trace(go.Scattergeo(
         lon=df_view["lon"],
         lat=df_view["lat"],
@@ -379,7 +327,6 @@ if view_mode == "1️⃣ شاشة التنبؤ، الخريطة، وجاهزية
         name="محطات الإقلاع الدولية"
     ))
 
-    # نقاط المنافذ المستهدفة
     dest_lats = [national_airports[k]["lat"] for k in selected_airports]
     dest_lons = [national_airports[k]["lon"] for k in selected_airports]
     dest_names = [national_airports[k]["name"] for k in selected_airports]
@@ -417,7 +364,7 @@ if view_mode == "1️⃣ شاشة التنبؤ، الخريطة، وجاهزية
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- 5. جدول الرحلات وتفكيك مسببات الخطورة ---
+    # 3. جدول فرز الرحلات وتفكيك الأسباب
     col_table, col_explain = st.columns([6, 4])
 
     with col_table:
@@ -438,17 +385,17 @@ if view_mode == "1️⃣ شاشة التنبؤ، الخريطة، وجاهزية
         if target_row["risk_score"] >= 65:
             box_border = "#ff3366"
             level_name = "مستوى أحمر (حرج / مناظرة مشددة)"
-        elif target_row["risk_score"] >= 35:
+        elif target_row["risk_score"] >= 30:
             box_border = "#ff9900"
             level_name = "مستوى برتقالي (معزز)"
         else:
             box_border = "#00e5ff"
             level_name = "مستوى سماوي (اعتيادي)"
 
-        if spar_avg < 60:
-            reasons.append(f"• **ضعف نظم الرصد والمختبرات:** تقييم دولة {target_row['country']} في مؤشر SPAR متدنٍ ({spar_avg:.1f}/100)، مما يرفع احتمالية وجود حالات خفية غير مبلغة.")
+        if spar_avg < 55:
+            reasons.append(f"• **ضعف نظم الرصد والمختبرات:** تقييم دولة {target_row['country']} في مؤشر SPAR متدنٍ ({spar_avg:.1f}/100)، مما يرفع احتمالية وجود حالات خفية.")
         if p_info["r0"] > 2.0:
-            reasons.append(f"• **سرعة الانتشار الوبائي للمرض:** الممرض ذو معدل انتشار مرتفع ($R_0 = {p_info['r0']}$).")
+            reasons.append(f"• **سرعة الانتشار الوبائي للمرض:** الممرض ذو معدل تكاثر مرتفع ($R_0 = {p_info['r0']}$).")
         if target_row["duration_h"] >= 4.5:
             reasons.append(f"• **طول زمن الرحلة:** مدة الطيران ({target_row['duration_h']} ساعة) تزيد احتمالية ظهور أعراض حرارية أثناء التحليق.")
         if rumor_factor > 1.0:
@@ -467,10 +414,9 @@ if view_mode == "1️⃣ شاشة التنبؤ، الخريطة، وجاهزية
 # =========================================================================
 # الشاشة الثانية: بروتوكول البلاغات وتتبع مقصورة الطائرة
 # =========================================================================
-else:
+elif view_mode == "2️⃣ بروتوكول البلاغات وتتبع مقصورة الطائرة":
     st.title("🚨 بروتوكول الاستجابة الميدانية ومحاكاة مقصورة الطائرة")
     
-    # بطاقة تعليمات وتجهيزات الفريق الطبي الميداني
     st.markdown(f"""
     <div style="background: rgba(16, 35, 78, 0.7); border: 1px solid #00e5ff; border-radius: 12px; padding: 18px; margin-bottom: 20px;">
         <h4 style="color: #00e5ff; margin-top: 0;">🦺 تعليمات وتجهيزات الفريق الطبي الميداني بالمنفذ:</h4>
@@ -537,7 +483,6 @@ else:
 
     fig_plane = go.Figure()
 
-    # 1. رسم هيكل الطائرة الانسيابي
     t = np.linspace(0, np.pi, 30)
     nose_x = 3.7 + 3.2 * np.cos(t)
     nose_y = 2 - 4.5 * np.sin(t)
@@ -554,7 +499,6 @@ else:
         showlegend=False
     ))
 
-    # 2. أجنحة الطائرة الإيروديناميكية المنحنية
     fig_plane.add_trace(go.Scatter(
         x=[0.5, -4.5, -4.0, 0.5],
         y=[11, 20, 24, 21],
@@ -574,7 +518,6 @@ else:
         showlegend=False
     ))
 
-    # 3. قمرة القيادة وأبواب الطوارئ
     fig_plane.add_trace(go.Scatter(
         x=[3.7], y=[-1.5],
         mode="text",
@@ -593,7 +536,6 @@ else:
         showlegend=False
     ))
 
-    # 4. توزيع المقاعد
     x_coords = {"A": 1.4, "B": 2.2, "C": 3.0, "D": 4.4, "E": 5.2, "F": 6.0}
     seat_xs, seat_ys, seat_texts, seat_colors, seat_hovers = [], [], [], [], []
 
@@ -658,3 +600,97 @@ else:
     )
 
     st.plotly_chart(fig_plane, use_container_width=True)
+
+# =========================================================================
+# الشاشة الثالثة: جاهزية سلاسل الإمداد (PPE) وغرف العزل بالمنافذ
+# =========================================================================
+else:
+    st.title("🏥 جاهزية سلاسل الإمداد الطبي (PPE) وغرف العزل المؤقتة")
+    st.caption("شاشة مخصصة لإدارة المخزون اللوجستي الميداني ومطابقة الطاقة السريرية مع تدفقات الرحلات القادمة.")
+
+    target_port = st.sidebar.selectbox(
+        "اختر منفذ المراقبة الصحية:",
+        options=list(national_airports.keys()),
+        format_func=lambda x: national_airports[x]["name"],
+        index=0
+    )
+    port_data = national_airports[target_port]
+
+    # جلب رحلات اليوم للمنفذ
+    all_dates = sorted(list(df_all["date"].unique()))
+    ops_day = st.sidebar.select_slider("اختر تاريخ المناوبة:", options=all_dates, value=all_dates[0])
+    
+    port_today_flights = df_all[(df_all["dest"] == target_port) & (df_all["date"] == ops_day)]
+    crit_today = len(port_today_flights[port_today_flights["level"] == "حرج"])
+    med_today = len(port_today_flights[port_today_flights["level"] == "متوسط"])
+
+    # الحسابات اللوجستية الواقعية
+    total_iso = port_data["iso_total"]
+    reserved_iso = min(crit_today, total_iso)
+    available_iso = total_iso - reserved_iso
+
+    current_stock = p_info["stock_current"]
+    est_consumption = (crit_today * 5) + (med_today * 2) # 5 أطقم للرحلة الحرجة و 2 للمتوسطة
+    projected_remaining = current_stock - est_consumption
+    crit_threshold = p_info["stock_critical_threshold"]
+    expiry_date = p_info["stock_expiry"]
+
+    # 1. بطاقات المؤشرات اللوجستية
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("غرف العزل المتاحة بالمنفذ", f"{available_iso} غرف", delta=f"{reserved_iso} محجوزة لرحلات حرجة" if reserved_iso > 0 else "كامل السعة شاغرة")
+    c2.metric(f"المتوفر بالمستودع من {p_info['ppe_item_name']}", f"{current_stock} طقم", delta=f"الاستهلاك المتوقع اليوم: {est_consumption} طقم", delta_color="inverse" if est_consumption > 0 else "normal")
+    c3.metric("الرصيد المتبقي المتوقع", f"{projected_remaining} طقم", delta="تحذير: اقتراب حد الأمان" if projected_remaining <= crit_threshold else "رصيد تشغيلي آمن", delta_color="inverse" if projected_remaining <= crit_threshold else "normal")
+    c4.metric("تاريخ انتهاء صلاحية الدفعة", expiry_date, delta="قارب على الانتهاء (نوفمبر 2026)" if "2026-11" in expiry_date else "صلاحية سارية", delta_color="inverse" if "2026-11" in expiry_date else "normal")
+
+    st.markdown("---")
+
+    # 2. كبسولات غرف العزل بالمطار
+    st.subheader(f"🚪 الحالة التشغيلية لوحدات العزل السالب الضغط ({port_data['name']})")
+    
+    iso_cols = st.columns(total_iso)
+    for idx, col in enumerate(iso_cols):
+        r_num = idx + 1
+        with col:
+            if idx < reserved_iso:
+                st.markdown(f"""
+                <div class="iso-unit" style="background: rgba(255, 51, 102, 0.2); border-color: #ff3366; color: #ff3366;">
+                    🚪 وحدة عزل {r_num}<br>
+                    <span>● محجوزة لرحلة حرجة قادمة</span><br>
+                    <span style="font-size: 0.85rem; color: #ff9900;">[ جاهزية نقل إسعافي للمستشفى المرجعي ]</span>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div class="iso-unit" style="background: rgba(0, 229, 255, 0.12); border-color: #00e5ff; color: #00e5ff;">
+                    🚪 وحدة عزل {r_num}<br>
+                    <span>● شاغرة ومجهزة بالكامل</span><br>
+                    <span style="font-size: 0.85rem; color: #00e5ff;">[ ضغط سالب - تعقيم مكتمل ]</span>
+                </div>
+                """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # 3. جدول المخزون الميداني وتواريخ الصلاحية لجميع الأمراض
+    st.subheader("📦 جدول تتبع المستلزمات الوقائية وسلاسل الإمداد بمستودع المنفذ")
+
+    inventory_rows = []
+    for d_name, d_val in pathogen_metadata.items():
+        is_current_disease = (d_name == selected_pathogen_name)
+        rem = projected_remaining if is_current_disease else d_val["stock_current"]
+        status = "حرج (طلب دعم فوري)" if rem <= d_val["stock_critical_threshold"] else ("تنبيه انتهاء الصلاحية" if "2026-11" in d_val["stock_expiry"] else "آمن ومستقر")
+        
+        inventory_rows.append({
+            "الممرض المستهدف": d_name.split(" ")[0],
+            "بند الوقاية المعتمد": d_val["ppe_item_name"],
+            "المخزون الحالي": d_val["stock_current"],
+            "حد الأمان الأدنى": d_val["stock_critical_threshold"],
+            "المتبقي التقديري": rem,
+            "تاريخ انتهاء الصلاحية": d_val["stock_expiry"],
+            "الحالة التشغيلية": status
+        })
+
+    inv_df = pd.DataFrame(inventory_rows)
+    st.dataframe(inv_df, use_container_width=True)
+
+    if projected_remaining <= crit_threshold:
+        st.error(f"🚨 **إنذار استنفاد المخزون:** الرصيد المتوقع لبند ({p_info['ppe_item_name']}) سيصل إلى ({projected_remaining}) طقم وهو أقل من حد الأمان ({crit_threshold}). تم إرسال إشعار فوري لإدارة التموين الطبي لدعم المنفذ.")
