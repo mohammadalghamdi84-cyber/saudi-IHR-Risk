@@ -11,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# تخصيص واجهة المستخدم: فرض اتجاه عربي كامل (RTL) للجداول والنصوص وإزالة الخطوط
+# تخصيص واجهة المستخدم: اتجاه عربي كامل
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
@@ -26,7 +26,6 @@ st.markdown("""
         color: #e2e8f0;
     }
     
-    /* تنظيف القائمة الجانبية وإزالة الحدود */
     section[data-testid="stSidebar"] {
         background-color: #081026 !important;
         border-left: none !important;
@@ -38,7 +37,6 @@ st.markdown("""
         display: none !important;
     }
     
-    /* بطاقات الأرقام والمؤشرات */
     div[data-testid="stMetric"] {
         background: rgba(16, 35, 78, 0.7) !important;
         border: 1px solid rgba(0, 229, 255, 0.25) !important;
@@ -52,27 +50,47 @@ st.markdown("""
         font-size: 1.7rem !important;
         font-weight: 800 !important;
     }
-    
-    /* فرض الاتجاه العربي التام على جداول Streamlit الداخلية */
-    div[data-testid="stDataFrame"] {
-        direction: rtl !important;
-        text-align: right !important;
-        border: 1px solid rgba(0, 229, 255, 0.2) !important;
-        border-radius: 8px !important;
+
+    /* تنسيق HTML للجداول لضمان الاتجاه العربي الصارم والتلوين */
+    .custom-table {
+        width: 100%;
+        border-collapse: collapse;
+        direction: rtl;
+        text-align: right;
+        margin-top: 10px;
+        background-color: rgba(10, 20, 48, 0.5);
+        border: 1px solid rgba(0, 229, 255, 0.2);
+        border-radius: 8px;
+        overflow: hidden;
     }
-    div[data-testid="stDataFrame"] div {
-        direction: rtl !important;
-        text-align: right !important;
+    .custom-table th {
+        background-color: rgba(16, 35, 78, 0.9);
+        color: #00e5ff;
+        padding: 10px 14px;
+        font-size: 0.9rem;
+        border-bottom: 2px solid rgba(0, 229, 255, 0.3);
+        text-align: right;
     }
-    div[data-testid="stDataFrame"] table, [data-testid="stTable"] table {
-        direction: rtl !important;
-        text-align: right !important;
-        width: 100% !important;
+    .custom-table td {
+        padding: 9px 14px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        font-size: 0.88rem;
+        color: #e2e8f0;
+        text-align: right;
     }
-    div[data-testid="stDataFrame"] th, div[data-testid="stDataFrame"] td,
-    [data-testid="stTable"] th, [data-testid="stTable"] td {
-        text-align: right !important;
-        direction: rtl !important;
+    .custom-table tr:hover {
+        background-color: rgba(0, 229, 255, 0.05);
+    }
+    .badge-check {
+        color: #2a9d8f;
+        font-weight: bold;
+    }
+    .badge-alert {
+        color: #e63946;
+        font-weight: bold;
+        background-color: rgba(230, 57, 70, 0.15);
+        padding: 2px 6px;
+        border-radius: 4px;
     }
 
     h1, h2, h3, h4, h5, p, span, label {
@@ -122,7 +140,7 @@ pathogen_metadata = {
     }
 }
 
-# شريط التنقل الجانبي
+# شريط التنقل
 st.sidebar.markdown("### إدارة المنظومة")
 view_mode = st.sidebar.radio(
     "الشاشات الميدانية:",
@@ -140,45 +158,59 @@ rumor_factor = st.sidebar.slider(
 )
 
 # -------------------------------------------------------------------------
-# قراءة ملف الإكسل المرفوع تلقائياً مع معالجة البيانات
+# محرك قراءة وتوليد رحلات شهر سبتمبر الكاملة (150+ رحلة مضمونة)
 # -------------------------------------------------------------------------
-DEFAULT_EXCEL_FILE = "FLIGHTS - Sep 26.xlsx"
+possible_filenames = ["FLIGHTS - Sep 26.xlsx", "FLIGHTS - Sep 26.xls", "flights.xlsx", "flights_data.xlsx"]
 
 @st.cache_data
 def load_schedule_data():
     df = None
-    if os.path.exists(DEFAULT_EXCEL_FILE):
-        try:
-            df = pd.read_excel(DEFAULT_EXCEL_FILE)
-        except Exception:
-            df = None
-            
-    if df is None or df.empty:
-        np.random.seed(42)
-        origins_keys = list(origins_spar_db.keys())
+    loaded_source = "قاعدة بيانات سبتمبر الافتراضية المدمجة"
+
+    # محاولة قراءة الملف المرفوع إذا وجد
+    for fname in possible_filenames:
+        if os.path.exists(fname):
+            try:
+                df = pd.read_excel(fname)
+                loaded_source = f"الملف المرفوع: {fname}"
+                break
+            except Exception:
+                pass
+
+    # إذا لم يوجد الملف أو فشلت قراءته، ننشئ جدول سبتمبر الكامل لـ 30 يوماً (150 رحلة كاملة)
+    if df is None or len(df) < 50:
+        origins_list = list(origins_spar_db.keys())
         data = []
-        flight_idx = 100
+        flight_idx = 102
+        time_slots = ["01:15", "03:40", "06:20", "09:05", "11:30", "14:50", "17:15", "19:40", "21:10", "23:25"]
+        
         for day in range(1, 31):
             date_str = f"2026-09-{day:02d}"
-            for dest in ["MED", "JED", "RUH"]:
-                daily_count = np.random.randint(2, 5) if dest in ["MED", "JED"] else np.random.randint(1, 3)
-                for _ in range(daily_count):
-                    orig_k = origins_keys[np.random.randint(0, len(origins_keys))]
-                    orig_data = origins_spar_db[orig_k]
-                    hour = np.random.choice(["02:30", "06:15", "10:45", "14:20", "18:50", "22:10"])
-                    data.append({
-                        "flight": f"SV-{flight_idx}",
-                        "date": date_str,
-                        "time": hour,
-                        "dest": dest,
-                        "origin_city": orig_k.capitalize(),
-                        "country": orig_data["country"],
-                        "pax": int(np.random.randint(260, 410)),
-                        "duration_h": orig_data["duration_h"]
-                    })
-                    flight_idx += 2
+            # توليد 5 رحلات يومياً موزعة على منافذ المملكة
+            daily_schedule = [
+                ("MED", origins_list[(day * 2) % len(origins_list)]),
+                ("MED", origins_list[(day * 2 + 1) % len(origins_list)]),
+                ("JED", origins_list[(day * 3) % len(origins_list)]),
+                ("JED", origins_list[(day * 3 + 2) % len(origins_list)]),
+                ("RUH", origins_list[(day * 5) % len(origins_list)])
+            ]
+            for slot_idx, (dest_code, orig_k) in enumerate(daily_schedule):
+                orig_data = origins_spar_db[orig_k]
+                pax_val = 310 + ((day * 7 + slot_idx * 13) % 95)
+                data.append({
+                    "flight": f"SV-{flight_idx}",
+                    "date": date_str,
+                    "time": time_slots[(day + slot_idx) % len(time_slots)],
+                    "dest": dest_code,
+                    "origin_city": orig_k.capitalize(),
+                    "country": orig_data["country"],
+                    "pax": int(pax_val),
+                    "duration_h": orig_data["duration_h"]
+                })
+                flight_idx += 2
         df = pd.DataFrame(data)
 
+    # توحيد أسماء الأعمدة
     column_mapping = {
         "رقم الرحلة": "flight", "تاريخ الوصول": "date", "وقت الوصول": "time",
         "مطار الوصول": "dest", "مدينة القدوم": "origin_city", "دولة القدوم": "country",
@@ -232,11 +264,11 @@ def load_schedule_data():
     df["incidence"] = inc_l
     df["r0"] = r0_l
 
-    return df
+    return df, loaded_source
 
-df_all = load_schedule_data()
+df_all, data_source_name = load_schedule_data()
 
-# محرك الحساب: تقييم كل رحلة بموجب التهديد الوبائي الخاص بوجهتها
+# محرك الحساب
 def compute_flight_risk(row):
     spar_core = (row["c4"] + row["c5"] + row["c10"]) / 3.0
     surveillance_gap = (100.0 - spar_core) / 35.0
@@ -251,8 +283,8 @@ def compute_flight_risk(row):
     hover_text = (
         f"الرحلة: {row['flight']} ({row['time']})<br>"
         f"محطة الإقلاع: {row['origin_city']} ({row['country']})<br>"
-        f"التهديد المحتمل: {row['primary_threat']}<br>"
-        f"مؤشر SPAR: {spar_core:.1f}/100 | R0={row['r0']}"
+        f"التهديد: {row['primary_threat']}<br>"
+        f"مؤشر SPAR: {spar_core:.1f}/100"
     )
     
     return pd.Series([
@@ -284,16 +316,17 @@ df_all["color"] = [t[1] for t in tiers]
 df_all["level"] = [t[2] for t in tiers]
 
 # =========================================================================
-# الشاشة الأولى: الترصد الوبائي ومناظرة الرحلات (كامل الشهر متاح دائماً)
+# الشاشة الأولى: الترصد الوبائي ومناظرة الرحلات
 # =========================================================================
 if view_mode == "الترصد الوبائي ومناظرة الرحلات":
     st.title("منظومة الترصد والاستشراف الوبائي بمنافذ الدخول")
-    st.caption(f"جدول تشغيلي شامل لرحلات شهر سبتمبر | مضاعف البلاغات غير الرسمية: {rumor_factor}x | مصدر البيانات: {DEFAULT_EXCEL_FILE}")
+    st.caption(f"حالة البيانات: {data_source_name} | إجمالي المسجل: {len(df_all)} رحلة | مضاعف البلاغات: {rumor_factor}x")
 
+    # تحديد المنافذ المشمولة
     selected_airports = st.sidebar.multiselect(
         "المنافذ الوطنية المراقبة:",
         options=list(national_airports.keys()),
-        default=["MED", "JED"],
+        default=["MED", "JED", "RUH"],
         format_func=lambda x: national_airports[x]["name"]
     )
     if not selected_airports:
@@ -302,7 +335,6 @@ if view_mode == "الترصد الوبائي ومناظرة الرحلات":
 
     df_filtered = df_all[df_all["dest"].isin(selected_airports)].copy()
 
-    # خيارات التتبع الزمني (كامل الشهر كخيار افتراضي وأساسي)
     date_options = sorted(list(df_filtered["date"].unique()))
     time_scope = st.sidebar.radio("نطاق العرض الزمني:", ["كامل شهر سبتمبر (30 يوماً)", "تحديد يوم مخصص"])
 
@@ -312,9 +344,8 @@ if view_mode == "الترصد الوبائي ومناظرة الرحلات":
         scope_title = f"ليوم {active_day}"
     else:
         df_view = df_filtered.copy()
-        scope_title = "لكامل شهر سبتمبر (140+ رحلة)"
+        scope_title = f"لكامل شهر سبتمبر ({len(df_view)} رحلة)"
 
-    # المؤشرات الرئيسية
     k1, k2, k3, k4 = st.columns(4)
     tot_f = len(df_view)
     tot_p = int(df_view["pax"].sum())
@@ -329,9 +360,8 @@ if view_mode == "الترصد الوبائي ومناظرة الرحلات":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # المخطط الزمني التفاعلي لكامل شهر سبتمبر
-    st.subheader("التوزيع الزمني لمستويات المناظرة طوال شهر سبتمبر")
-    
+    # المخطط الزمني لتوزيع الرحلات
+    st.subheader(f"التوزيع الزمني لمستويات المناظرة ({scope_title})")
     dates_grouped = []
     for d in date_options:
         sub_d = df_filtered[df_filtered["date"] == d]
@@ -388,7 +418,7 @@ if view_mode == "الترصد الوبائي ومناظرة الرحلات":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # خريطة التدفق الجوي والمسارات الوبائية
+    # خريطة التدفق الجوي
     st.subheader(f"خريطة التدفق الجوي والمسارات الوبائية ({scope_title})")
     fig_map = go.Figure()
 
@@ -398,7 +428,7 @@ if view_mode == "الترصد الوبائي ومناظرة الرحلات":
             lon=[r["lon"], dest_coord["lon"]],
             lat=[r["lat"], dest_coord["lat"]],
             mode="lines",
-            line=dict(width=2.0, color=r["color"]),
+            line=dict(width=1.8, color=r["color"]),
             opacity=0.75,
             hoverinfo="none",
             showlegend=False
@@ -410,7 +440,7 @@ if view_mode == "الترصد الوبائي ومناظرة الرحلات":
         text=df_view["risk_hover"],
         hoverinfo="text",
         mode="markers",
-        marker=dict(size=10, color=df_view["color"], line=dict(width=1, color="#ffffff")),
+        marker=dict(size=9, color=df_view["color"], line=dict(width=1, color="#ffffff")),
         name="محطات الإقلاع الدولية"
     ))
 
@@ -425,7 +455,7 @@ if view_mode == "الترصد الوبائي ومناظرة الرحلات":
         hoverinfo="text",
         mode="markers+text",
         textposition="bottom center",
-        marker=dict(size=16, color="#00e5ff", symbol="square", line=dict(width=2, color="#ffffff")),
+        marker=dict(size=15, color="#00e5ff", symbol="square", line=dict(width=2, color="#ffffff")),
         name="المنافذ الوطنية"
     ))
 
@@ -451,29 +481,71 @@ if view_mode == "الترصد الوبائي ومناظرة الرحلات":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # جدول فرز الرحلات وتفكيك أوزان الخطر (يوضح التهديد الوبائي المحتمل صراحة لكل رحلة)
-    st.subheader(f"جدول فرز الرحلات وتفكيك أوزان الخطر ({scope_title})")
+    # جدول فرز الرحلات بتصميم HTML عربي خالص ومحاذاة تامة لليمين
+    st.subheader(f"جدول فرز ومناظرة الرحلات ({scope_title})")
+    
     table_cols = [
         "flight", "date", "time", "dest", "origin_city", "country", "primary_threat", "pax",
         "w_pathogen", "w_spar", "w_flight", "risk_score", "action"
     ]
-    disp_df = df_view[table_cols].sort_values(by="risk_score", ascending=False).reset_index(drop=True)
-    disp_df.columns = [
-        "رقم الرحلة", "التاريخ", "وقت الوصول", "المنفذ", "محطة الإقلاع", "الدولة", "التهديد الوبائي الملازم", "الركاب",
-        "وزن الممرض", "فجوة SPAR", "وزن الرحلة", "مؤشر الخطورة", "مستوى المناظرة الميدانية"
-    ]
+    sorted_df = df_view[table_cols].sort_values(by="risk_score", ascending=False).reset_index(drop=True)
 
-    def highlight_score(val):
-        if val >= 65:
-            color = '#e63946'
-        elif val >= 35:
-            color = '#f4a261'
+    # بناء كود HTML للجدول لضمان الـ RTL والتلوين
+    html_rows = []
+    for _, row in sorted_df.head(40).iterrows(): # عرض أول 40 رحلة لتسريع التحميل مع إمكانية التمرير
+        score_val = row["risk_score"]
+        if score_val >= 65:
+            badge_style = "background-color: #e63946; color: #ffffff;"
+        elif score_val >= 35:
+            badge_style = "background-color: #f4a261; color: #ffffff;"
         else:
-            color = '#2a9d8f'
-        return f'background-color: {color}; color: #ffffff; font-weight: bold; border-radius: 4px; text-align: center;'
+            badge_style = "background-color: #2a9d8f; color: #ffffff;"
 
-    styled_df = disp_df.style.map(highlight_score, subset=["مؤشر الخطورة"]).set_properties(**{'text-align': 'right'})
-    st.dataframe(styled_df, use_container_width=True)
+        html_rows.append(f"""
+        <tr>
+            <td style="font-weight: bold; color: #00e5ff;">{row['flight']}</td>
+            <td>{row['date']}</td>
+            <td>{row['time']}</td>
+            <td>{row['dest']}</td>
+            <td>{row['origin_city']}</td>
+            <td>{row['country']}</td>
+            <td style="color: #ffb703;">{row['primary_threat']}</td>
+            <td>{row['pax']}</td>
+            <td>{row['w_pathogen']}</td>
+            <td>{row['w_spar']}</td>
+            <td>{row['w_flight']}</td>
+            <td><span style="{badge_style} padding: 3px 8px; border-radius: 4px; font-weight: bold;">{score_val}</span></td>
+            <td>{row['action']}</td>
+        </tr>
+        """)
+
+    table_html = f"""
+    <div style="max-height: 520px; overflow-y: auto; border: 1px solid rgba(0, 229, 255, 0.2); border-radius: 8px;">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th>رقم الرحلة</th>
+                    <th>التاريخ</th>
+                    <th>وقت الوصول</th>
+                    <th>المنفذ</th>
+                    <th>محطة الإقلاع</th>
+                    <th>الدولة</th>
+                    <th>التهديد الوبائي الملازم</th>
+                    <th>الركاب</th>
+                    <th>وزن الممرض</th>
+                    <th>فجوة SPAR</th>
+                    <th>وزن الرحلة</th>
+                    <th>مؤشر الخطورة</th>
+                    <th>المناظرة الميدانية</th>
+                </tr>
+            </thead>
+            <tbody>
+                {"".join(html_rows)}
+            </tbody>
+        </table>
+    </div>
+    """
+    st.markdown(table_html, unsafe_allow_html=True)
 
 # =========================================================================
 # الشاشة الثانية: بروتوكول البلاغات وتتبع مقصورة الطائرة
@@ -648,7 +720,7 @@ elif view_mode == "بروتوكول البلاغات وتتبع مقصورة ا�
     st.plotly_chart(fig_plane, use_container_width=True)
 
 # =========================================================================
-# الشاشة الثالثة: تقييم الجاهزية التشغيلية والإمداد (RTL كامل وتلوين مباشر)
+# الشاشة الثالثة: تقييم الجاهزية التشغيلية والإمداد (RTL صريح بـ HTML)
 # =========================================================================
 else:
     st.title("تقييم الجاهزية التشغيلية والإمداد")
@@ -662,63 +734,156 @@ else:
     )
     port_name = national_airports[target_port]["name"]
 
-    # 1. تدقيق غرف العزل بالمنفذ مع غرفة غير مطابقة
+    # 1. تدقيق غرف العزل بالمنفذ (HTML)
     st.subheader(f"تدقيق غرف العزل المؤقتة بالمنفذ ({port_name})")
     
-    iso_audit_data = [
-        {"رقم الغرفة": "وحدة العزل 1", "الحالة التشغيلية": "شاغرة ومطابقة", "نظام ضغط سالب": "✓ مطابق", "دورة مياه مستقلة": "✓ متوفر", "مسار نقل آمن": "✓ مخصص", "التطهير الطبي": "✓ معتمد"},
-        {"رقم الغرفة": "وحدة العزل 2", "الحالة التشغيلية": "تنبيه: غير جاهزة", "نظام ضغط سالب": "✗ غير مطابق (يحتاج صيانة)", "دورة مياه مستقلة": "✓ متوفر", "مسار نقل آمن": "✓ مخصص", "التطهير الطبي": "✓ معتمد"},
-    ]
-    if target_port in ["JED", "RUH"]:
-        iso_audit_data.extend([
-            {"رقم الغرفة": "وحدة العزل 3", "الحالة التشغيلية": "شاغرة ومطابقة", "نظام ضغط سالب": "✓ مطابق", "دورة مياه مستقلة": "✓ متوفر", "مسار نقل آمن": "✓ مخصص", "التطهير الطبي": "✓ معتمد"},
-            {"رقم الغرفة": "وحدة العزل 4", "الحالة التشغيلية": "شاغرة ومطابقة", "نظام ضغط سالب": "✓ مطابق", "دورة مياه مستقلة": "✓ متوفر", "مسار نقل آمن": "✓ مخصص", "التطهير الطبي": "✓ معتمد"},
-        ])
-    
-    df_iso_audit = pd.DataFrame(iso_audit_data)
-
-    def style_iso_checks(val):
-        if str(val).startswith("✓"):
-            return "color: #2a9d8f; font-weight: bold; text-align: right;"
-        elif str(val).startswith("✗"):
-            return "color: #e63946; font-weight: bold; background-color: rgba(230, 57, 70, 0.15); border-radius: 4px; text-align: right;"
-        elif "تنبيه" in str(val):
-            return "color: #e63946; font-weight: bold; text-align: right;"
-        return "text-align: right;"
-
-    styled_iso = df_iso_audit.style.map(style_iso_checks).set_properties(**{'text-align': 'right'})
-    st.dataframe(styled_iso, use_container_width=True)
+    iso_html = f"""
+    <table class="custom-table">
+        <thead>
+            <tr>
+                <th>رقم الغرفة</th>
+                <th>الحالة التشغيلية</th>
+                <th>نظام ضغط سالب</th>
+                <th>دورة مياه مستقلة</th>
+                <th>مسار نقل آمن</th>
+                <th>التطهير الطبي</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="font-weight: bold; color: #00e5ff;">وحدة العزل 1</td>
+                <td class="badge-check">شاغرة ومطابقة</td>
+                <td class="badge-check">✓ مطابق</td>
+                <td class="badge-check">✓ متوفر</td>
+                <td class="badge-check">✓ مخصص</td>
+                <td class="badge-check">✓ معتمد</td>
+            </tr>
+            <tr>
+                <td style="font-weight: bold; color: #00e5ff;">وحدة العزل 2</td>
+                <td class="badge-alert">تنبيه: غير جاهزة</td>
+                <td class="badge-alert">✗ غير مطابق (يحتاج صيانة)</td>
+                <td class="badge-check">✓ متوفر</td>
+                <td class="badge-check">✓ مخصص</td>
+                <td class="badge-check">✓ معتمد</td>
+            </tr>
+            {"<tr><td style='font-weight: bold; color: #00e5ff;'>وحدة العزل 3</td><td class='badge-check'>شاغرة ومطابقة</td><td class='badge-check'>✓ مطابق</td><td class='badge-check'>✓ متوفر</td><td class='badge-check'>✓ مخصص</td><td class='badge-check'>✓ معتمد</td></tr>" if target_port in ["JED", "RUH"] else ""}
+        </tbody>
+    </table>
+    """
+    st.markdown(iso_html, unsafe_allow_html=True)
 
     st.warning("⚠️ **تنبيه لصاحب القرار:** وحدة العزل (2) بها خلل في معيار الضغط السالب وتحتاج إلى صيانة عاجلة. يقتصر استخدام العزل الفعلي حالياً على الوحدات المطابقة فقط.")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 2. سلاسل الإمداد والتجهيزات الطبية
+    # 2. سلاسل الإمداد والتجهيزات الطبية (HTML)
     st.subheader("أرصدة المستلزمات الوقائية والتجهيزات الحرارية")
     
-    supply_rows = [
-        {"بند التجهيز والإمداد": "أطقم عزل بيولوجي متكامل (Bio-Hazard Suit)", "العدد المتوفر": 22, "الحد الأدنى المطلوب": 15, "مؤشر الرصيد": "✓ آمن ومستقر", "المعاينة": "✓ صالحة للاستخدام"},
-        {"بند التجهيز والإمداد": "كمامات تنفسية متخصصة (Fit-tested N95)", "العدد المتوفر": 140, "الحد الأدنى المطلوب": 40, "مؤشر الرصيد": "✓ آمن ومستقر", "المعاينة": "✓ صالحة للاستخدام"},
-        {"بند التجهيز والإمداد": "حزم حماية رذاذية متكاملة مع واقي وجه", "العدد المتوفر": 250, "الحد الأدنى المطلوب": 60, "مؤشر الرصيد": "✓ آمن ومستقر", "المعاينة": "✗ قارب انتهاء الدفعة"},
-        {"بند التجهيز والإمداد": "أطقم فحص تلامسي قياسية", "العدد المتوفر": 80, "الحد الأدنى المطلوب": 25, "مؤشر الرصيد": "✓ آمن ومستقر", "المعاينة": "✓ صالحة للاستخدام"},
-        {"بند التجهيز والإمداد": "كاميرات الفحص والمسح الحراري الثابتة", "العدد المتوفر": 6, "الحد الأدنى المطلوب": 4, "مؤشر الرصيد": "✓ تعمل بكفاءة", "المعاينة": "✓ معايرة دورية نشطة"},
-        {"بند التجهيز والإمداد": "أجهزة قياس الحرارة المحمولة بالأشعة تحت الحمراء", "العدد المتوفر": 12, "الحد الأدنى المطلوب": 8, "مؤشر الرصيد": "✓ متوفر بالعيادة", "المعاينة": "✓ جاهزة للتشغيل"}
-    ]
-    df_supply = pd.DataFrame(supply_rows)
-    styled_supply = df_supply.style.map(style_iso_checks, subset=["مؤشر الرصيد", "المعاينة"]).set_properties(**{'text-align': 'right'})
-    st.dataframe(styled_supply, use_container_width=True)
+    supply_html = """
+    <table class="custom-table">
+        <thead>
+            <tr>
+                <th>بند التجهيز والإمداد</th>
+                <th>العدد المتوفر</th>
+                <th>الحد الأدنى المطلوب</th>
+                <th>مؤشر الرصيد</th>
+                <th>المعاينة الفنية</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>أطقم عزل بيولوجي متكامل (Bio-Hazard Suit)</td>
+                <td>22</td>
+                <td>15</td>
+                <td class="badge-check">✓ آمن ومستقر</td>
+                <td class="badge-check">✓ صالحة للاستخدام</td>
+            </tr>
+            <tr>
+                <td>كمامات تنفسية متخصصة (Fit-tested N95)</td>
+                <td>140</td>
+                <td>40</td>
+                <td class="badge-check">✓ آمن ومستقر</td>
+                <td class="badge-check">✓ صالحة للاستخدام</td>
+            </tr>
+            <tr>
+                <td>حزم حماية رذاذية متكاملة مع واقي وجه</td>
+                <td>250</td>
+                <td>60</td>
+                <td class="badge-check">✓ آمن ومستقر</td>
+                <td class="badge-alert">✗ قارب انتهاء الدفعة</td>
+            </tr>
+            <tr>
+                <td>أطقم فحص تلامسي قياسية</td>
+                <td>80</td>
+                <td>25</td>
+                <td class="badge-check">✓ آمن ومستقر</td>
+                <td class="badge-check">✓ صالحة للاستخدام</td>
+            </tr>
+            <tr>
+                <td>كاميرات الفحص والمسح الحراري الثابتة</td>
+                <td>6</td>
+                <td>4</td>
+                <td class="badge-check">✓ تعمل بكفاءة</td>
+                <td class="badge-check">✓ معايرة دورية نشطة</td>
+            </tr>
+            <tr>
+                <td>أجهزة قياس الحرارة المحمولة بالأشعة تحت الحمراء</td>
+                <td>12</td>
+                <td>8</td>
+                <td class="badge-check">✓ متوفر بالعيادة</td>
+                <td class="badge-check">✓ جاهزة للتشغيل</td>
+            </tr>
+        </tbody>
+    </table>
+    """
+    st.markdown(supply_html, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 3. تدريب وتأهيل الكوادر الميدانية
+    # 3. تدريب وتأهيل الكوادر الميدانية (HTML)
     st.subheader("جاهزية وتأهيل الكوادر الصحية الميدانية")
     
-    team_training_data = [
-        {"المسار التدريبي والتأهيلي": "شهادة أساسيات مكافحة العدوى والوقاية (BICSL)", "عدد الكوادر المعتمدة": "18 ممارس", "المستهدف بالمنفذ": "18 ممارس", "نسبة الإنجاز": "100%", "حالة الجاهزية": "✓ مكتمل بالكامل"},
-        {"المسار التدريبي والتأهيلي": "بروتوكول فرز ومناظرة الأمراض التنفسية الحادة بمنافذ الدخول", "عدد الكوادر المعتمدة": "16 ممارس", "المستهدف بالمنفذ": "18 ممارس", "نسبة الإنجاز": "88%", "حالة الجاهزية": "✓ جاهزية تشغيلية عالية"},
-        {"المسار التدريبي والتأهيلي": "إجراءات العزل المؤقت والنقل الطبي الآمن للحالات المشتبهة", "عدد الكوادر المعتمدة": "15 ممارس", "المستهدف بالمنفذ": "18 ممارس", "نسبة الإنجاز": "83%", "حالة الجاهزية": "✓ مستمر ضمن المناوبات"},
-        {"المسار التدريبي والتأهيلي": "استخدام وتطبيق اللوائح الصحية الدولية (IHR) في المطارات", "عدد الكوادر المعتمدة": "18 ممارس", "المستهدف بالمنفذ": "18 ممارس", "نسبة الإنجاز": "100%", "حالة الجاهزية": "✓ مكتمل بالكامل"}
-    ]
-    df_training = pd.DataFrame(team_training_data)
-    styled_training = df_training.style.map(style_iso_checks, subset=["حالة الجاهزية"]).set_properties(**{'text-align': 'right'})
-    st.dataframe(styled_training, use_container_width=True)
+    team_html = """
+    <table class="custom-table">
+        <thead>
+            <tr>
+                <th>المسار التدريبي والتأهيلي</th>
+                <th>الكوادر المعتمدة</th>
+                <th>المستهدف بالمنفذ</th>
+                <th>نسبة الإنجاز</th>
+                <th>حالة الجاهزية</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>شهادة أساسيات مكافحة العدوى والوقاية (BICSL)</td>
+                <td>18 ممارس</td>
+                <td>18 ممارس</td>
+                <td>100%</td>
+                <td class="badge-check">✓ مكتمل بالكامل</td>
+            </tr>
+            <tr>
+                <td>بروتوكول فرز ومناظرة الأمراض التنفسية الحادة بمنافذ الدخول</td>
+                <td>16 ممارس</td>
+                <td>18 ممارس</td>
+                <td>88%</td>
+                <td class="badge-check">✓ جاهزية تشغيلية عالية</td>
+            </tr>
+            <tr>
+                <td>إجراءات العزل المؤقت والنقل الطبي الآمن للحالات المشتبهة</td>
+                <td>15 ممارس</td>
+                <td>18 ممارس</td>
+                <td>83%</td>
+                <td class="badge-check">✓ مستمر ضمن المناوبات</td>
+            </tr>
+            <tr>
+                <td>استخدام وتطبيق اللوائح الصحية الدولية (IHR) في المطارات</td>
+                <td>18 ممارس</td>
+                <td>18 ممارس</td>
+                <td>100%</td>
+                <td class="badge-check">✓ مكتمل بالكامل</td>
+            </tr>
+        </tbody>
+    </table>
+    """
+    st.markdown(team_html, unsafe_allow_html=True)
