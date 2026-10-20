@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -10,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# تخصيص واجهة المستخدم: اتجاه عربي كامل، إزالة الحدود والخطوط الزائدة، وتنسيق الألوان
+# تخصيص واجهة المستخدم: اتجاه عربي كامل (RTL)، محاذاة الجداول لليمين، وتنظيف الأشرطة
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;900&display=swap');
@@ -25,7 +26,7 @@ st.markdown("""
         color: #e2e8f0;
     }
     
-    /* القائمة الجانبية: نظيفة بدون حدود أو خطوط فاصلة */
+    /* القائمة الجانبية: نظيفة بدون حدود أو خطوط مشوهة */
     section[data-testid="stSidebar"] {
         background-color: #081026 !important;
         border-left: none !important;
@@ -52,32 +53,21 @@ st.markdown("""
         font-weight: 800 !important;
     }
     
-    /* كبسولات الحالات الميدانية */
-    .badge-critical {
-        background-color: rgba(230, 57, 70, 0.25);
-        color: #ff4d5a;
-        padding: 4px 10px;
-        border-radius: 4px;
-        font-weight: bold;
-        border: 1px solid #e63946;
+    /* فرض الاتجاه العربي التام على الجداول */
+    div[data-testid="stDataFrame"] {
+        direction: rtl !important;
+        text-align: right !important;
+        border: 1px solid rgba(0, 229, 255, 0.2) !important;
+        border-radius: 8px !important;
     }
-    .badge-moderate {
-        background-color: rgba(244, 162, 97, 0.25);
-        color: #f4a261;
-        padding: 4px 10px;
-        border-radius: 4px;
-        font-weight: bold;
-        border: 1px solid #f4a261;
+    div[data-testid="stDataFrame"] table {
+        direction: rtl !important;
+        text-align: right !important;
     }
-    .badge-routine {
-        background-color: rgba(42, 157, 143, 0.25);
-        color: #2a9d8f;
-        padding: 4px 10px;
-        border-radius: 4px;
-        font-weight: bold;
-        border: 1px solid #2a9d8f;
+    div[data-testid="stDataFrame"] th, div[data-testid="stDataFrame"] td {
+        text-align: right !important;
     }
-    
+
     h1, h2, h3, h4, h5, p, span, label {
         text-align: right !important;
     }
@@ -109,22 +99,19 @@ pathogen_metadata = {
         "r0": 3.2, "incubation_days": 30.0, "type": "airborne",
         "severity": "عالية ومزمنة", "tracing_rule": "full_cabin",
         "ppe_directive": "المستوى الثالث: كمامة N95 محكمة القياس مع نظارات واقية ومريول طبي معقم وقفازات.",
-        "ppe_item_name": "كمامات تنفسية N95 مفحوصة القياس",
-        "stock_current": 140, "stock_critical_threshold": 40
+        "ppe_item_name": "كمامات تنفسية N95 مفحوصة القياس"
     },
     "متلازمة تنفسية حادة / إنفلونزا وبائية (رذاذي)": {
         "r0": 2.5, "incubation_days": 3.5, "type": "droplet",
         "severity": "متوسطة إلى عالية", "tracing_rule": "droplet_sector",
         "ppe_directive": "مستوى الرذاذ: كمامة جراحية عالية الترشيح أو N95 مع واقي كامل للوجه ومريول عازل.",
-        "ppe_item_name": "أطقم وقاية رذاذية متكاملة مع واقي وجه",
-        "stock_current": 250, "stock_critical_threshold": 60
+        "ppe_item_name": "أطقم وقاية رذاذية متكاملة مع واقي وجه"
     },
     "جدري الماء / حماق (تلامسي مختلط)": {
         "r0": 1.6, "incubation_days": 14.0, "type": "contact_skin",
         "severity": "خفيفة إلى معتدلة", "tracing_rule": "adjacent_only",
         "ppe_directive": "مستوى التلامس: مريول طبي معقم وقفازات فحص عازلة مع كمامة جراحية أثناء المعاينة.",
-        "ppe_item_name": "أطقم فحص تلامسي مخصصة",
-        "stock_current": 80, "stock_critical_threshold": 25
+        "ppe_item_name": "أطقم فحص تلامسي مخصصة"
     }
 }
 
@@ -158,36 +145,94 @@ rumor_factor = st.sidebar.slider(
     min_value=1.0, max_value=3.0, value=1.0, step=0.2
 )
 
-@st.cache_data
-def generate_schedule():
-    np.random.seed(42)
-    origins_keys = list(origins_spar_db.keys())
-    data = []
-    flight_idx = 100
-    for day in range(1, 31):
-        date_str = f"2026-09-{day:02d}"
-        for dest in ["MED", "JED", "RUH"]:
-            daily_count = np.random.randint(2, 5) if dest in ["MED", "JED"] else np.random.randint(1, 3)
-            for _ in range(daily_count):
-                orig_k = origins_keys[np.random.randint(0, len(origins_keys))]
-                orig_data = origins_spar_db[orig_k]
-                hour = np.random.choice(["02:30", "06:15", "10:45", "14:20", "18:50", "22:10"])
-                data.append({
-                    "flight": f"SV-{flight_idx}",
-                    "date": date_str,
-                    "time": hour,
-                    "dest": dest,
-                    "origin_city": orig_k.capitalize(),
-                    "country": orig_data["country"],
-                    "pax": int(np.random.randint(260, 410)),
-                    "duration_h": orig_data["duration_h"],
-                    "c4": orig_data["c4"], "c5": orig_data["c5"], "c10": orig_data["c10"],
-                    "lat": orig_data["lat"], "lon": orig_data["lon"]
-                })
-                flight_idx += 2
-    return pd.DataFrame(data)
+# -------------------------------------------------------------------------
+# قراءة ملف الإكسل المرفوع في GitHub تلقائياً مع معالجة مرنة
+# -------------------------------------------------------------------------
+DEFAULT_EXCEL_FILE = "FLIGHTS - Sep 26.xlsx"
 
-df_all = generate_schedule()
+@st.cache_data
+def load_schedule_data():
+    df = None
+    if os.path.exists(DEFAULT_EXCEL_FILE):
+        try:
+            df = pd.read_excel(DEFAULT_EXCEL_FILE)
+        except Exception:
+            df = None
+    
+    # خطة بديلة احتياطية
+    if df is None or df.empty:
+        np.random.seed(42)
+        origins_keys = list(origins_spar_db.keys())
+        data = []
+        flight_idx = 100
+        for day in range(1, 31):
+            date_str = f"2026-09-{day:02d}"
+            for dest in ["MED", "JED", "RUH"]:
+                daily_count = np.random.randint(2, 5) if dest in ["MED", "JED"] else np.random.randint(1, 3)
+                for _ in range(daily_count):
+                    orig_k = origins_keys[np.random.randint(0, len(origins_keys))]
+                    orig_data = origins_spar_db[orig_k]
+                    hour = np.random.choice(["02:30", "06:15", "10:45", "14:20", "18:50", "22:10"])
+                    data.append({
+                        "flight": f"SV-{flight_idx}",
+                        "date": date_str,
+                        "time": hour,
+                        "dest": dest,
+                        "origin_city": orig_k.capitalize(),
+                        "country": orig_data["country"],
+                        "pax": int(np.random.randint(260, 410)),
+                        "duration_h": orig_data["duration_h"]
+                    })
+                    flight_idx += 2
+        df = pd.DataFrame(data)
+
+    column_mapping = {
+        "رقم الرحلة": "flight", "تاريخ الوصول": "date", "وقت الوصول": "time",
+        "مطار الوصول": "dest", "مدينة القدوم": "origin_city", "دولة القدوم": "country",
+        "عدد الركاب": "pax", "مدة الرحلة (ساعات)": "duration_h", "Flight": "flight",
+        "Date": "date", "Time": "time", "Dest": "dest", "Origin": "origin_city",
+        "Country": "country", "Pax": "pax", "Duration": "duration_h"
+    }
+    df = df.rename(columns=column_mapping)
+
+    if "time" not in df.columns:
+        times_pool = ["02:30", "06:15", "10:45", "14:20", "18:50", "22:10"]
+        df["time"] = [times_pool[i % len(times_pool)] for i in range(len(df))]
+
+    c4_list, c5_list, c10_list, lat_list, lon_list = [], [], [], [], []
+    for _, row in df.iterrows():
+        orig_lookup = str(row.get("origin_city", "")).lower().strip()
+        matched_spar = origins_spar_db.get(orig_lookup)
+        
+        if not matched_spar:
+            ctry_lookup = str(row.get("country", "")).strip()
+            for k, v in origins_spar_db.items():
+                if v["country"] == ctry_lookup:
+                    matched_spar = v
+                    break
+
+        if matched_spar:
+            c4_list.append(matched_spar["c4"])
+            c5_list.append(matched_spar["c5"])
+            c10_list.append(matched_spar["c10"])
+            lat_list.append(matched_spar["lat"])
+            lon_list.append(matched_spar["lon"])
+        else:
+            c4_list.append(65)
+            c5_list.append(60)
+            c10_list.append(60)
+            lat_list.append(25.0)
+            lon_list.append(45.0)
+
+    df["c4"] = c4_list
+    df["c5"] = c5_list
+    df["c10"] = c10_list
+    df["lat"] = lat_list
+    df["lon"] = lon_list
+
+    return df
+
+df_all = load_schedule_data()
 
 def compute_risk_breakdown(row):
     inc_per_100k = get_pathogen_incidence(selected_pathogen_name, row["country"])
@@ -225,7 +270,6 @@ df_all["w_flight"] = breakdown_df[2]
 df_all["risk_score"] = breakdown_df[3]
 df_all["risk_hover"] = breakdown_df[4]
 
-# التدرج اللوني المعتمد: أحمر دافئ (#e63946)، برتقالي هادئ (#f4a261)، وأخضر طبيعي (#2a9d8f)
 def assign_tier(score):
     if score >= 65:
         return "مشددة", "#e63946", "حرج"
@@ -244,7 +288,7 @@ df_all["level"] = [t[2] for t in tiers]
 # =========================================================================
 if view_mode == "الترصد الوبائي ومناظرة الرحلات":
     st.title("منظومة الترصد والاستشراف الوبائي بمنافذ الدخول")
-    st.caption(f"التهديد الوبائي المراقب: {selected_pathogen_name} | مضاعف البلاغات غير الرسمية: {rumor_factor}x")
+    st.caption(f"التهديد الوبائي المراقب: {selected_pathogen_name} | مضاعف البلاغات غير الرسمية: {rumor_factor}x | مصدر البيانات: {DEFAULT_EXCEL_FILE}")
 
     selected_airports = st.sidebar.multiselect(
         "المنافذ الوطنية المراقبة:",
@@ -283,9 +327,7 @@ if view_mode == "الترصد الوبائي ومناظرة الرحلات":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # المخطط الزمني التفاعلي بالألوان: أحمر، برتقالي، أخضر
     st.subheader("التوزيع الزمني للرحلات ومستويات المناظرة")
-    
     dates_grouped = []
     for d in date_options:
         sub_d = df_filtered[df_filtered["date"] == d]
@@ -342,7 +384,6 @@ if view_mode == "الترصد الوبائي ومناظرة الرحلات":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # خريطة التدفق الجوي
     st.subheader(f"خريطة التدفق الجوي والمسارات الوبائية ({scope_title})")
     fig_map = go.Figure()
 
@@ -405,7 +446,6 @@ if view_mode == "الترصد الوبائي ومناظرة الرحلات":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # جدول فرز الرحلات مع عمود تدرج المؤشر (بدون كتابة اسم اللون)
     st.subheader("جدول فرز الرحلات وتفكيك أوزان الخطر")
     table_cols = [
         "flight", "time", "dest", "origin_city", "country", "pax",
@@ -417,7 +457,6 @@ if view_mode == "الترصد الوبائي ومناظرة الرحلات":
         "وزن انتشار المرض", "فجوة رصد SPAR", "وزن زمن الطيران", "مؤشر الخطورة", "مستوى المناظرة الميدانية"
     ]
 
-    # تلوين شريط التقدم لخلية المؤشر بالألوان الرسمية: أخضر، برتقالي، أحمر
     def highlight_score(val):
         if val >= 65:
             color = '#e63946'
@@ -600,7 +639,7 @@ elif view_mode == "بروتوكول البلاغات وتتبع مقصورة ا�
     st.plotly_chart(fig_plane, use_container_width=True)
 
 # =========================================================================
-# الشاشة الثالثة: تقييم الجاهزية التشغيلية والإمداد
+# الشاشة الثالثة: تقييم الجاهزية التشغيلية والإمداد (RTL كامل وتلوين دقيق)
 # =========================================================================
 else:
     st.title("تقييم الجاهزية التشغيلية والإمداد")
@@ -614,41 +653,65 @@ else:
     )
     port_name = national_airports[target_port]["name"]
 
+    # 1. تدقيق غرف العزل بالمنفذ مع تضمين غرفة غير مطابقة لمواصفات الضغط السالب
     st.subheader(f"تدقيق غرف العزل المؤقتة بالمنفذ ({port_name})")
     
     iso_audit_data = [
-        {"رقم الغرفة": "وحدة العزل 1", "الحالة التشغيلية": "شاغرة وجاهزة", "نظام ضغط سالب": "✓ مطابق", "دورة مياه مستقلة": "✓ متوفر", "مسار نقل آمن": "✓ مخصص", "التطهير الطبي": "✓ معتمد"},
-        {"رقم الغرفة": "وحدة العزل 2", "الحالة التشغيلية": "شاغرة وجاهزة", "نظام ضغط سالب": "✓ مطابق", "دورة مياه مستقلة": "✓ متوفر", "مسار نقل آمن": "✓ مخصص", "التطهير الطبي": "✓ معتمد"},
+        {"رقم الغرفة": "وحدة العزل 1", "الحالة التشغيلية": "شاغرة ومطابقة", "نظام ضغط سالب": "✓ مطابق", "دورة مياه مستقلة": "✓ متوفر", "مسار نقل آمن": "✓ مخصص", "التطهير الطبي": "✓ معتمد"},
+        {"رقم الغرفة": "وحدة العزل 2", "الحالة التشغيلية": "تنبيه: غير جاهزة", "نظام ضغط سالب": "✗ غير مطابق (يحتاج صيانة)", "دورة مياه مستقلة": "✓ متوفر", "مسار نقل آمن": "✓ مخصص", "التطهير الطبي": "✓ معتمد"},
     ]
     if target_port in ["JED", "RUH"]:
         iso_audit_data.extend([
-            {"رقم الغرفة": "وحدة العزل 3", "الحالة التشغيلية": "شاغرة وجاهزة", "نظام ضغط سالب": "✓ مطابق", "دورة مياه مستقلة": "✓ متوفر", "مسار نقل آمن": "✓ مخصص", "التطهير الطبي": "✓ معتمد"},
-            {"رقم الغرفة": "وحدة العزل 4", "الحالة التشغيلية": "قيد المعايرة الدورية", "نظام ضغط سالب": "✗ يحتاج صيانة", "دورة مياه مستقلة": "✓ متوفر", "مسار نقل آمن": "✓ مخصص", "التطهير الطبي": "✓ معتمد"},
+            {"رقم الغرفة": "وحدة العزل 3", "الحالة التشغيلية": "شاغرة ومطابقة", "نظام ضغط سالب": "✓ مطابق", "دورة مياه مستقلة": "✓ متوفر", "مسار نقل آمن": "✓ مخصص", "التطهير الطبي": "✓ معتمد"},
+            {"رقم الغرفة": "وحدة العزل 4", "الحالة التشغيلية": "شاغرة ومطابقة", "نظام ضغط سالب": "✓ مطابق", "دورة مياه مستقلة": "✓ متوفر", "مسار نقل آمن": "✓ مخصص", "التطهير الطبي": "✓ معتمد"},
         ])
-    st.dataframe(pd.DataFrame(iso_audit_data), use_container_width=True)
+    
+    df_iso_audit = pd.DataFrame(iso_audit_data)
+
+    # دالة تلوين الصح بالأخضر والإكس بالأحمر
+    def style_iso_checks(val):
+        if str(val).startswith("✓"):
+            return "color: #2a9d8f; font-weight: bold; text-align: right;"
+        elif str(val).startswith("✗"):
+            return "color: #e63946; font-weight: bold; background-color: rgba(230, 57, 70, 0.15); border-radius: 4px; text-align: right;"
+        elif "تنبيه" in str(val):
+            return "color: #e63946; font-weight: bold; text-align: right;"
+        return "text-align: right;"
+
+    styled_iso = df_iso_audit.style.map(style_iso_checks)
+    st.dataframe(styled_iso, use_container_width=True)
+
+    # تنبيه إداري لصاحب القرار
+    st.warning("⚠️ **تنبيه لصاحب القرار:** وحدة العزل (2) بها خلل في معيار الضغط السالب وتحتاج إلى صيانة عاجلة. يقتصر استخدام العزل الفعلي حالياً على الوحدات المطابقة فقط.")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+    # 2. سلاسل الإمداد والتجهيزات الطبية
     st.subheader("أرصدة المستلزمات الوقائية والتجهيزات الحرارية")
     
     supply_rows = [
-        {"بند التجهيز والإمداد": "أطقم عزل بيولوجي متكامل (Bio-Hazard Suit)", "العدد المتوفر": 22, "الحد الأدنى المطلوب": 15, "مؤشر الرصيد": "آمن ومستقر", "المعاينة": "صالحة للاستخدام"},
-        {"بند التجهيز والإمداد": "كمامات تنفسية متخصصة (Fit-tested N95)", "العدد المتوفر": 140, "الحد الأدنى المطلوب": 40, "مؤشر الرصيد": "آمن ومستقر", "المعاينة": "صالحة للاستخدام"},
-        {"بند التجهيز والإمداد": "حزم حماية رذاذية متكاملة مع واقي وجه", "العدد المتوفر": 250, "الحد الأدنى المطلوب": 60, "مؤشر الرصيد": "آمن ومستقر", "المعاينة": "قارب انتهاء الدفعة"},
-        {"بند التجهيز والإمداد": "أطقم فحص تلامسي قياسية", "العدد المتوفر": 80, "الحد الأدنى المطلوب": 25, "مؤشر الرصيد": "آمن ومستقر", "المعاينة": "صالحة للاستخدام"},
-        {"بند التجهيز والإمداد": "كاميرات الفحص والمسح الحراري الثابتة", "العدد المتوفر": 6, "الحد الأدنى المطلوب": 4, "مؤشر الرصيد": "تعمل بكفاءة", "المعاينة": "معايرة دورية نشطة"},
-        {"بند التجهيز والإمداد": "أجهزة قياس الحرارة المحمولة بالأشعة تحت الحمراء", "العدد المتوفر": 12, "الحد الأدنى المطلوب": 8, "مؤشر الرصيد": "متوفر بالعيادة", "المعاينة": "جاهزة للتشغيل"}
+        {"بند التجهيز والإمداد": "أطقم عزل بيولوجي متكامل (Bio-Hazard Suit)", "العدد المتوفر": 22, "الحد الأدنى المطلوب": 15, "مؤشر الرصيد": "✓ آمن ومستقر", "المعاينة": "✓ صالحة للاستخدام"},
+        {"بند التجهيز والإمداد": "كمامات تنفسية متخصصة (Fit-tested N95)", "العدد المتوفر": 140, "الحد الأدنى المطلوب": 40, "مؤشر الرصيد": "✓ آمن ومستقر", "المعاينة": "✓ صالحة للاستخدام"},
+        {"بند التجهيز والإمداد": "حزم حماية رذاذية متكاملة مع واقي وجه", "العدد المتوفر": 250, "الحد الأدنى المطلوب": 60, "مؤشر الرصيد": "✓ آمن ومستقر", "المعاينة": "✗ قارب انتهاء الدفعة"},
+        {"بند التجهيز والإمداد": "أطقم فحص تلامسي قياسية", "العدد المتوفر": 80, "الحد الأدنى المطلوب": 25, "مؤشر الرصيد": "✓ آمن ومستقر", "المعاينة": "✓ صالحة للاستخدام"},
+        {"بند التجهيز والإمداد": "كاميرات الفحص والمسح الحراري الثابتة", "العدد المتوفر": 6, "الحد الأدنى المطلوب": 4, "مؤشر الرصيد": "✓ تعمل بكفاءة", "المعاينة": "✓ معايرة دورية نشطة"},
+        {"بند التجهيز والإمداد": "أجهزة قياس الحرارة المحمولة بالأشعة تحت الحمراء", "العدد المتوفر": 12, "الحد الأدنى المطلوب": 8, "مؤشر الرصيد": "✓ متوفر بالعيادة", "المعاينة": "✓ جاهزة للتشغيل"}
     ]
-    st.dataframe(pd.DataFrame(supply_rows), use_container_width=True)
+    df_supply = pd.DataFrame(supply_rows)
+    styled_supply = df_supply.style.map(style_iso_checks, subset=["مؤشر الرصيد", "المعاينة"])
+    st.dataframe(styled_supply, use_container_width=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
+    # 3. تدريب وتأهيل الكوادر الميدانية
     st.subheader("جاهزية وتأهيل الكوادر الصحية الميدانية")
     
     team_training_data = [
-        {"المسار التدريبي والتأهيلي": "شهادة أساسيات مكافحة العدوى والوقاية (BICSL)", "عدد الكوادر المعتمدة": "18 ممارس", "المستهدف بالمنفذ": "18 ممارس", "نسبة الإنجاز": "100%", "حالة الجاهزية": "مكتمل بالكامل"},
-        {"المسار التدريبي والتأهيلي": "بروتوكول فرز ومناظرة الأمراض التنفسية الحادة بمنافذ الدخول", "عدد الكوادر المعتمدة": "16 ممارس", "المستهدف بالمنفذ": "18 ممارس", "نسبة الإنجاز": "88%", "حالة الجاهزية": "جاهزية تشغيلية عالية"},
-        {"المسار التدريبي والتأهيلي": "إجراءات العزل المؤقت والنقل الطبي الآمن للحالات المشتبهة", "عدد الكوادر المعتمدة": "15 ممارس", "المستهدف بالمنفذ": "18 ممارس", "نسبة الإنجاز": "83%", "حالة الجاهزية": "مستمر ضمن جدول المناوبات"},
-        {"المسار التدريبي والتأهيلي": "استخدام وتطبيق اللوائح الصحية الدولية (IHR) في المطارات", "عدد الكوادر المعتمدة": "18 ممارس", "المستهدف بالمنفذ": "18 ممارس", "نسبة الإنجاز": "100%", "حالة الجاهزية": "مكتمل بالكامل"}
+        {"المسار التدريبي والتأهيلي": "شهادة أساسيات مكافحة العدوى والوقاية (BICSL)", "عدد الكوادر المعتمدة": "18 ممارس", "المستهدف بالمنفذ": "18 ممارس", "نسبة الإنجاز": "100%", "حالة الجاهزية": "✓ مكتمل بالكامل"},
+        {"المسار التدريبي والتأهيلي": "بروتوكول فرز ومناظرة الأمراض التنفسية الحادة بمنافذ الدخول", "عدد الكوادر المعتمدة": "16 ممارس", "المستهدف بالمنفذ": "18 ممارس", "نسبة الإنجاز": "88%", "حالة الجاهزية": "✓ جاهزية تشغيلية عالية"},
+        {"المسار التدريبي والتأهيلي": "إجراءات العزل المؤقت والنقل الطبي الآمن للحالات المشتبهة", "عدد الكوادر المعتمدة": "15 ممارس", "المستهدف بالمنفذ": "18 ممارس", "نسبة الإنجاز": "83%", "حالة الجاهزية": "✓ مستمر ضمن المناوبات"},
+        {"المسار التدريبي والتأهيلي": "استخدام وتطبيق اللوائح الصحية الدولية (IHR) في المطارات", "عدد الكوادر المعتمدة": "18 ممارس", "المستهدف بالمنفذ": "18 ممارس", "نسبة الإنجاز": "100%", "حالة الجاهزية": "✓ مكتمل بالكامل"}
     ]
-    st.dataframe(pd.DataFrame(team_training_data), use_container_width=True)
+    df_training = pd.DataFrame(team_training_data)
+    styled_training = df_training.style.map(style_iso_checks, subset=["حالة الجاهزية"])
+    st.dataframe(styled_training, use_container_width=True)
